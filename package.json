@@ -1,0 +1,27 @@
+{
+  "name": "gameserver",
+  "version": "1.1.11",
+  "description": "Websocket server to hold, and track users, and share data beetween them",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ALapinskas/gameserver.git"
+  },
+  "keywords": [
+    "game",
+    "server"
+  ],
+  "author": "Arturas-Alfredas Lapinskas",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/ALapinskas/gameserver/issues"
+  },
+  "homepage": "https://github.com/ALapinskas/gameserver#readme",
+  "dependencies": {
+    "socket.io": "^4.5.0"
+  }
+}
