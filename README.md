@@ -14,21 +14,21 @@ Websocket server to hold, and track users, and share data between them.
     const socket = io(serverAddress, {withCredentials: true});
 
     Use events to emit(socket.emit(event, parameters)):
-    _______________________________________________
-    |   event           | parameters              |
-    _______________________________________________
-    |   'create or join'| room:string, map:Object,|
-    |                   | maxPlayers:number = 2   |
-    |   'message'       | message:Object          |
-    _______________________________________________ 
+    _________________________________________________
+    |   event             | parameters              |
+    _________________________________________________
+    |   'gatherRoomsInfo' |                         |   
+    |   'create or join'  | room:string, map:Object,|
+    |                     | maxPlayers:number = 2   |
+    |   'message'         | message:Object          |
+    _________________________________________________ 
 
     events to listen(socket.on(event, parameters)):
     ______________________________________________________________________________
     |   event      | parameters | receiver | info                                |
     ______________________________________________________________________________
-        'roomsInfo'  rooms:Array  conn peer  After successful connection, 
-                                                you should receive current rooms info
-        'created'    room map    conn peer  Received when a new room has been created    
+        'roomsInfo'  rooms:Array  conn peer  Received after gatherRoomsInfo will be emitted
+        'created'    room map    conn peer   Received after a new room has been created    
         'joined'     room, map    all peers  Received when somebody joined to a room  
         'full'       room         conn peer  Received when tried to join for overflowed room
         'log'        message      conn peer  Debug logging
