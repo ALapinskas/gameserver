@@ -15,6 +15,7 @@
                 let popup = window.uikit.Popup,
                     formSwitcher = window.uikit.FormSwitchers,
                     formInput = window.uikit.FormInput,
+                    roomValue,
                     playOptions = { 
                         SINGLE: "Single Player",
                         MULTIPLAYER: "Two Players"
@@ -61,14 +62,19 @@
                                 alert("please type a room name to play!");
                             } else {
                                 console.log("play");
+                                roomValue = roomName.value.trim();
                                 socket = io("http://localhost:9000", {withCredentials: true});
 
-                                socket.emit('create or join', roomName.value.trim());
+                                socket.emit('create or join', roomValue);
                                 socket.on("created", (room, map) => {
                                     console.log("room created! Waiting for other player...");
+                                    optionsPopup.close();
+                                    loadingPopup = new popup("loading", loadingContents(), true);
                                 });
                                 socket.on("joined", () => {
-                                    console.log("some body joined! String the game");
+                                    console.log("some body joined! Starting the game");
+                                    optionsPopup.close();
+                                    if(loadingPopup) loadingPopup.close();
                                 });
                                 socket.on("log", (message) => {
                                     console.log("log from server: ", message);
@@ -86,7 +92,17 @@
                     wrapper.appendChild(submitButton);
                     return wrapper;
                 }
-                new popup("default", popupContents(), true);
+                const loadingContents = () => {
+                    let wrapper = document.createElement("div"),
+                        text = document.createElement("p");
+                    wrapper.innerHTML = '<iframe src="https://upload.wikimedia.org/wikipedia/commons/b/b1/Loading_icon.gif" frameBorder="0" class="giphy-embed" allowFullScreen></iframe>';
+                    text.innerText = ("Waiting other player to join, please ask your friend to go to the address: " + window.location + ", and joint the room: " + roomValue);
+                    wrapper.appendChild(text);
+                    wrapper.style.padding = "10px";
+                    return wrapper;
+                }
+                const optionsPopup = new popup("default", popupContents(), true);
+                let loadingPopup = undefined;
             }
         }
     </script>
