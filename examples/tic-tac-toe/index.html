@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<head>
+    <title>Tic-Tac-Toe game app</title>
+    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=0, minimum-scale=1.0, maximum-scale=1.0">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.0/socket.io.js"></script>
+    <script type="module" src="/node_modules/uikit/dist/uikit.min.js"></script>
+</head>
+<body>
+    <div class="board">
+        
+    </div>
+    <script>
+        document.onreadystatechange = function () {
+            if (document.readyState == "complete") {
+                let popup = window.uikit.Popup,
+                    formSwitcher = window.uikit.FormSwitchers,
+                    formInput = window.uikit.FormInput,
+                    playOptions = { 
+                        SINGLE: "Single Player",
+                        MULTIPLAYER: "Two Players"
+                    },
+                    socket;
+                let popupContents = function() {
+                    let wrapper = document.createElement('div'),
+                        header = document.createElement('h1'),
+                        howManyPlayers = new formSwitcher(
+                            "howManyPlayers", 
+                            "How many players?",
+                            "radio",
+                            "howMany",
+                            Object.keys(playOptions).map((key) => playOptions[key])
+                        ),
+                        roomName = new formInput("name", "Room Name"),
+                        submitButton = document.createElement("button");
+                    header.innerText = "Tic-tac-toe";
+                    submitButton.innerText = "Play!";
+                    wrapper.style.padding = "10px";
+                    howManyPlayers.wrapper.style["padding-bottom"] = "15px";
+                    roomName.wrapper.style.display = "block";
+                    roomName.wrapper.style["padding-bottom"] = "15px";
+
+                    wrapper.appendChild(header);
+                    wrapper.appendChild(howManyPlayers.wrapper);
+                    wrapper.appendChild(roomName.wrapper);
+                    howManyPlayers.values = ["Two Players"];
+                    howManyPlayers.on("change", e => {
+                        console.log("changed radio: ", e.target.value);
+                        if(e.target.value === playOptions.SINGLE) {
+                            roomName.wrapper.style.display = "none";
+                        } else {
+                            roomName.wrapper.style.display = "block";
+                        }
+                    });
+
+                    submitButton.addEventListener("click", () => {
+                        const value = howManyPlayers.values[0];
+                        if(value === playOptions.SINGLE) {
+                            alert("Sorry, single player game is not implemented yet! \n please choose Multiplayer one, \n and call a friend to play with you!");
+                        } else {
+                            if(roomName.value.trim().length === 0) {
+                                alert("please type a room name to play!");
+                            } else {
+                                console.log("play");
+                                socket = io("http://localhost:9000", {withCredentials: true});
+
+                                socket.emit('create or join', roomName.value.trim());
+                                socket.on("created", (room, map) => {
+                                    console.log("room created! Waiting for other player...");
+                                });
+                                socket.on("joined", () => {
+                                    console.log("some body joined! String the game");
+                                });
+                                socket.on("log", (message) => {
+                                    console.log("log from server: ", message);
+                                });
+                                socket.on("full", (message) => {
+                                    alert("Sorry, this room is overflowed, choose another one");
+                                });
+                                socket.on("message", (message) => {
+                                    console.log("message from server: ", message);
+                                });
+                            }
+                        }
+                    });
+
+                    wrapper.appendChild(submitButton);
+                    return wrapper;
+                }
+                new popup("default", popupContents(), true);
+            }
+        }
+    </script>
+</body>

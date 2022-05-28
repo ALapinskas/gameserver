@@ -1,6 +1,6 @@
 {
   "name": "gameserver",
-  "version": "1.1.11",
+  "version": "1.1.12",
   "description": "Websocket server to hold, and track users, and share data beetween them",
   "main": "index.js",
   "scripts": {
@@ -22,6 +22,7 @@
   },
   "homepage": "https://github.com/ALapinskas/gameserver#readme",
   "dependencies": {
-    "socket.io": "^4.5.0"
+    "socket.io": "^4.5.0",
+    "uikit": "github:ALapinskas/uikit"
   }
 }

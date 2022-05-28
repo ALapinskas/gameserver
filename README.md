@@ -18,7 +18,8 @@ Websocket server to hold, and track users, and share data between them.
     |   event             | parameters              |
     _________________________________________________
     |   'gatherRoomsInfo' |                         |   
-    |   'create or join'  | room:string, map:Object,|
+    |   'create or join'  | room:string, 
+    |                     | map:Object = {},        |
     |                     | maxPlayers:number = 2   |
     |   'message'         | message:Object          |
     _________________________________________________ 

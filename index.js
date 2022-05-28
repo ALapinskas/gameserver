@@ -115,7 +115,7 @@ io.sockets.on("connection", function (socket) {
         socket.emit("roomsInfo", roomsInfo);
     });
 
-    socket.on("create or join", function (room, map, maxPlayers = 2) {
+    socket.on("create or join", function (room, map = {}, maxPlayers = 2) {
         log("Received request to create or join room " + room);
         if (roomsInfo[room]) {
             //@todo: rebuild this stuff
@@ -133,7 +133,7 @@ io.sockets.on("connection", function (socket) {
             map = roomsInfo[room].map;
             log("map: ", map);
         } else {
-            roomsInfo[room] = { map };
+            roomsInfo[room] = map;
         }
         roomsInfo[room][socket.id] = {};
         ///////////
