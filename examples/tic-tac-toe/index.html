@@ -6,7 +6,7 @@
     <script type="module" src="/node_modules/uikit/dist/uikit.min.js"></script>
 </head>
 <body>
-    <div class="board">
+    <div id="board">
         
     </div>
     <script>
@@ -20,7 +20,14 @@
                         SINGLE: "Single Player",
                         MULTIPLAYER: "Two Players"
                     },
-                    socket;
+                    socket,
+                    isCreator = false,
+                    whoseTurn,
+                    gameBoard,
+                    turnsOverlay,
+                    loadingPopup = undefined
+                    whoseTurnPopup = undefined;
+
                 let popupContents = function() {
                     let wrapper = document.createElement('div'),
                         header = document.createElement('h1'),
@@ -70,11 +77,13 @@
                                     console.log("room created! Waiting for other player...");
                                     optionsPopup.close();
                                     loadingPopup = new popup("loading", loadingContents(), true);
+                                    isCreator = true;
                                 });
                                 socket.on("joined", () => {
-                                    console.log("some body joined! Starting the game");
+                                    console.log("some body joined! Starting the game!");
                                     optionsPopup.close();
                                     if(loadingPopup) loadingPopup.close();
+                                    whoseTurnPopup = new popup("whoseTurn", whoseTurnContents(), true);
                                 });
                                 socket.on("log", (message) => {
                                     console.log("log from server: ", message);
@@ -84,6 +93,13 @@
                                 });
                                 socket.on("message", (message) => {
                                     console.log("message from server: ", message);
+                                    switch(message.type) {
+                                        case "who_first":
+                                            if(!isCreator) { 
+                                                alert("Player " + message.whoseTurn + ", will be first!");
+                                                drawBoard(message.whoseTurn);
+                                            }
+                                    }
                                 });
                             }
                         }
@@ -96,13 +112,74 @@
                     let wrapper = document.createElement("div"),
                         text = document.createElement("p");
                     wrapper.innerHTML = '<iframe src="https://upload.wikimedia.org/wikipedia/commons/b/b1/Loading_icon.gif" frameBorder="0" class="giphy-embed" allowFullScreen></iframe>';
-                    text.innerText = ("Waiting other player to join, please ask your friend to go to the address: " + window.location + ", and joint the room: " + roomValue);
+                    text.innerText = ("Waiting other player to join, please ask your friend to go to the address: " + window.location + ", and join the room: " + roomValue);
                     wrapper.appendChild(text);
                     wrapper.style.padding = "10px";
                     return wrapper;
                 }
-                const optionsPopup = new popup("default", popupContents(), true);
-                let loadingPopup = undefined;
+                const whoseTurnContents = () => {
+                    let wrapper = document.createElement("div"),
+                        text = document.createElement("p");
+                    wrapper.innerHTML = '<iframe src="https://upload.wikimedia.org/wikipedia/commons/b/b1/Loading_icon.gif" frameBorder="0" class="giphy-embed" allowFullScreen></iframe>';
+                    text.innerText = ("Randomly choosing first player turn.");
+                    if(isCreator) {
+                        setTimeout(() => {
+                            let player = Math.floor(Math.random() * 2) + 1;
+                            console.log("Player ", player, " will be first!");
+                            socket.emit("message", {type:"who_first", whoseTurn: player});
+                            if(player === 1) {
+                                drawBoard(player);
+                            }
+                            if(whoseTurnPopup) {
+                                whoseTurnPopup.close();
+                            }
+                        }, 5000);
+                    }
+                    return wrapper;
+                }
+
+                const optionsPopup = new popup("default", popupContents(), true);  
+                
+                const drawBoard = (player) => {
+                    const windowWidth = window.innerWidth,
+                        windowHeight = window.innerHeight,
+                        boardDiv = document.getElementById("board");
+
+                    let boardWidth = windowWidth,
+                        ctxBoard,
+                        ctxOverlay;
+                    console.log("draw board");
+                    gameBoard = document.createElement("canvas");
+                    turnsOverlay = document.createElement("canvas");
+                    ctxBoard = gameBoard.getContext("2d");
+                    ctxOverlay = turnsOverlay.getContext("2d");
+                    
+                    gameBoard.id = "GameBoard";
+                    turnsOverlay.id = "TurnsOverlay";
+
+                    if (windowWidth > windowHeight) {
+                        while (boardWidth > windowHeight) {
+                            boardWidth = windowWidth / 2;
+                        }
+                    } else {
+                        boardWidth = windowHeight;
+                        while (boardWidth > windowWidth) {
+                            boardWidth = windowHeight / 2;
+                        }
+                    }
+
+                    gameBoard.width = boardWidth;
+                    gameBoard.height = boardWidth;
+
+                    ctxBoard.fillRect(0, 0, boardWidth, boardWidth);
+                    ctxOverlay.fillRect(0, 0, boardWidth, boardWidth);
+
+                    ctxBoard.fillStyle = "rgba(255, 0, 0, 0.2)";
+                    ctxOverlay.fillStyle = "rgba(255, 255, 255, 0.2)"; 
+
+                    boardDiv.appendChild(gameBoard);
+                    boardDiv.appendChild(turnsOverlay);
+                }
             }
         }
     </script>
