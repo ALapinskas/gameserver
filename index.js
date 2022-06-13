@@ -118,24 +118,11 @@ io.sockets.on("connection", function (socket) {
     socket.on("create or join", function (room, map = {}, maxPlayers = 2) {
         log("Received request to create or join room " + room);
         if (roomsInfo[room]) {
-            //@todo: rebuild this stuff
-            Object.keys(roomsInfo[room]).forEach((joined_id) => {
-                if (socket.id !== joined_id) {
-                    log("sent message, with current info");
-                    log(roomsInfo[room][joined_id]);
-                    io.to(socket.id).emit(
-                        "message",
-                        roomsInfo[room][joined_id]
-                    );
-                }
-            });
-
-            map = roomsInfo[room].map;
-            log("map: ", map);
+            map = roomsInfo[room];
+            log("map already exist in this room: ", map);
         } else {
             roomsInfo[room] = map;
         }
-        roomsInfo[room][socket.id] = {};
         ///////////
         log("client added");
         log(JSON.stringify(roomsInfo));
@@ -150,8 +137,7 @@ io.sockets.on("connection", function (socket) {
         } else if (numClients < maxPlayers) {
             socket.join(room);
             log("Client ID " + socket.id + " joined room " + room);
-            socket.emit("joined", room, map);
-            io.sockets.in(room).emit("joined");
+            io.sockets.in(room).emit("joined", room, map);
         } else {
             socket.emit("full", room);
         }

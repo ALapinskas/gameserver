@@ -6,6 +6,7 @@
     <script type="module" src="/node_modules/uikit/dist/uikit.min.js"></script>
 </head>
 <body>
+    <div id="whoseTurn"></div>
     <div id="board">
         
     </div>
@@ -22,7 +23,7 @@
                     },
                     socket,
                     isCreator = false,
-                    whoseTurn,
+                    applicationState = { whoseTurn:undefined, playerA:{}, playerB:{} },
                     gameBoard,
                     turnsOverlay,
                     loadingPopup = undefined
@@ -71,19 +72,21 @@
                                 console.log("play");
                                 roomValue = roomName.value.trim();
                                 socket = io("http://localhost:9000", {withCredentials: true});
-
-                                socket.emit('create or join', roomValue);
                                 socket.on("created", (room, map) => {
                                     console.log("room created! Waiting for other player...");
                                     optionsPopup.close();
                                     loadingPopup = new popup("loading", loadingContents(), true);
                                     isCreator = true;
                                 });
-                                socket.on("joined", () => {
+                                socket.on("joined", (room, map) => {
                                     console.log("some body joined! Starting the game!");
                                     optionsPopup.close();
+                                    applicationState = map;
                                     if(loadingPopup) loadingPopup.close();
-                                    whoseTurnPopup = new popup("whoseTurn", whoseTurnContents(), true);
+                                    console.log("whose turn: ", applicationState.whoseTurn);
+                                    if(typeof applicationState.whoseTurn === "undefined") {
+                                        whoseTurnPopup = new popup("whoseTurn", whoseTurnContents(), true);
+                                    }
                                 });
                                 socket.on("log", (message) => {
                                     console.log("log from server: ", message);
@@ -96,11 +99,16 @@
                                     switch(message.type) {
                                         case "who_first":
                                             if(!isCreator) { 
-                                                alert("Player " + message.whoseTurn + ", will be first!");
-                                                drawBoard(message.whoseTurn);
+                                                whoseTurn = message.whoseTurn;
+                                                console.log("Player " + message.whoseTurn + ", will be first!");
+                                                if(loadingPopup) loadingPopup.close();
+                                                drawBoard(whoseTurn);
+                                                setTimeout(() => whoseTurnPopup.close(), 2000);
                                             }
                                     }
                                 });
+                                
+                                socket.emit('create or join', roomValue, applicationState);
                             }
                         }
                     });
@@ -124,12 +132,10 @@
                     text.innerText = ("Randomly choosing first player turn.");
                     if(isCreator) {
                         setTimeout(() => {
-                            let player = Math.floor(Math.random() * 2) + 1;
+                            let player = ~~(Math.random() * 2) + 1;
                             console.log("Player ", player, " will be first!");
                             socket.emit("message", {type:"who_first", whoseTurn: player});
-                            if(player === 1) {
-                                drawBoard(player);
-                            }
+                            drawBoard(player);
                             if(whoseTurnPopup) {
                                 whoseTurnPopup.close();
                             }
@@ -143,12 +149,15 @@
                 const drawBoard = (player) => {
                     const windowWidth = window.innerWidth,
                         windowHeight = window.innerHeight,
-                        boardDiv = document.getElementById("board");
+                        boardDiv = document.getElementById("board"),
+                        whoseTurnDiv = document.getElementById("whoseTurn");
 
                     let boardWidth = windowWidth,
                         ctxBoard,
                         ctxOverlay;
                     console.log("draw board");
+
+                    whoseTurnDiv.innerText = whoseTurn && whoseTurn == 2 ? isCreator ? "Its your turn now" : "Now it is your opponent turn" : isCreator ? "Now it is your opponent turn" : "Its your turn now"; 
                     gameBoard = document.createElement("canvas");
                     turnsOverlay = document.createElement("canvas");
                     ctxBoard = gameBoard.getContext("2d");
@@ -171,11 +180,46 @@
                     gameBoard.width = boardWidth;
                     gameBoard.height = boardWidth;
 
+                    gameBoard.style.position = "absolute";
+                    gameBoard.style.left = "25%";
+                    gameBoard.style.top = "25%";
+
+                    turnsOverlay.width = boardWidth;
+                    turnsOverlay.height = boardWidth;
+
+                    turnsOverlay.style.position = "absolute";
+                    turnsOverlay.style.left = "25%";
+                    turnsOverlay.style.top = "25%";
+
+                    ctxBoard.fillStyle = "rgba(255, 255, 255, 0.3)";
+                    ctxOverlay.fillStyle = "rgba(0, 0, 0, 0)"; 
                     ctxBoard.fillRect(0, 0, boardWidth, boardWidth);
                     ctxOverlay.fillRect(0, 0, boardWidth, boardWidth);
 
-                    ctxBoard.fillStyle = "rgba(255, 0, 0, 0.2)";
-                    ctxOverlay.fillStyle = "rgba(255, 255, 255, 0.2)"; 
+
+                    ctxBoard.strokeStyle = 'black';
+                    ctxBoard.lineWidth = 5;
+
+                    // draw a red line
+                    ctxBoard.beginPath();
+                    ctxBoard.moveTo(boardWidth/3, 0);
+                    ctxBoard.lineTo(boardWidth/3, boardWidth);
+                    ctxBoard.stroke();
+
+                    ctxBoard.beginPath();
+                    ctxBoard.moveTo(boardWidth/3 * 2, 0);
+                    ctxBoard.lineTo(boardWidth/3 * 2, boardWidth);
+                    ctxBoard.stroke();
+
+                    ctxBoard.beginPath();
+                    ctxBoard.moveTo(0, boardWidth/3);
+                    ctxBoard.lineTo(boardWidth, boardWidth/3);
+                    ctxBoard.stroke();
+
+                    ctxBoard.beginPath();
+                    ctxBoard.moveTo(0, boardWidth/3 * 2);
+                    ctxBoard.lineTo(boardWidth, boardWidth/3 * 2);
+                    ctxBoard.stroke();
 
                     boardDiv.appendChild(gameBoard);
                     boardDiv.appendChild(turnsOverlay);
