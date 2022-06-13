@@ -26,8 +26,13 @@
                     applicationState = { whoseTurn:undefined, playerA:{}, playerB:{} },
                     gameBoard,
                     turnsOverlay,
-                    loadingPopup = undefined
-                    whoseTurnPopup = undefined;
+                    loadingPopup = undefined,
+                    whoseTurnPopup = undefined,
+                    ctxBoard,
+                    ctxOverlay,
+                    curX,
+                    curY,
+                    pressed = false;
 
                 let popupContents = function() {
                     let wrapper = document.createElement('div'),
@@ -99,10 +104,10 @@
                                     switch(message.type) {
                                         case "who_first":
                                             if(!isCreator) { 
-                                                whoseTurn = message.whoseTurn;
+                                                applicationState.whoseTurn = message.whoseTurn;
                                                 console.log("Player " + message.whoseTurn + ", will be first!");
                                                 if(loadingPopup) loadingPopup.close();
-                                                drawBoard(whoseTurn);
+                                                drawBoard(applicationState.whoseTurn);
                                                 setTimeout(() => whoseTurnPopup.close(), 2000);
                                             }
                                     }
@@ -139,25 +144,38 @@
                             if(whoseTurnPopup) {
                                 whoseTurnPopup.close();
                             }
-                        }, 5000);
+                        }, 3000);
                     }
                     return wrapper;
                 }
 
                 const optionsPopup = new popup("default", popupContents(), true);  
-                
+
+                function draw() {
+                    if(pressed) {
+                        ctxOverlay.fillStyle = "#ccc";
+                        ctxOverlay.beginPath();
+                        ctxOverlay.arc(curX, curY-85, 8, degToRad(0), degToRad(360), false);
+                        ctxOverlay.fill();
+                    }
+
+                    requestAnimationFrame(draw);
+                }
+
+                function degToRad(degrees) {
+                    return degrees * Math.PI / 180;
+                }
+
                 const drawBoard = (player) => {
                     const windowWidth = window.innerWidth,
                         windowHeight = window.innerHeight,
                         boardDiv = document.getElementById("board"),
                         whoseTurnDiv = document.getElementById("whoseTurn");
 
-                    let boardWidth = windowWidth,
-                        ctxBoard,
-                        ctxOverlay;
+                    let boardWidth = windowWidth;
                     console.log("draw board");
 
-                    whoseTurnDiv.innerText = whoseTurn && whoseTurn == 2 ? isCreator ? "Its your turn now" : "Now it is your opponent turn" : isCreator ? "Now it is your opponent turn" : "Its your turn now"; 
+                    whoseTurnDiv.innerText = player == 1 ? isCreator ? "Its your turn now" : "Now it is your opponent turn" : isCreator ? "Now it is your opponent turn" : "Its your turn now"; 
                     gameBoard = document.createElement("canvas");
                     turnsOverlay = document.createElement("canvas");
                     ctxBoard = gameBoard.getContext("2d");
@@ -223,6 +241,22 @@
 
                     boardDiv.appendChild(gameBoard);
                     boardDiv.appendChild(turnsOverlay);
+
+                    setDrawEvents();
+                }
+                setDrawEvents = () => {
+                    const board = document.getElementById("board");
+                    // update mouse pointer coordinates
+                    document.addEventListener('mousemove', e => {
+                        curX = (window.Event) ? e.pageX : e.clientX + (document.documentElement.scrollLeft ? document.documentElement.scrollLeft : document.body.scrollLeft);
+                        curY = (window.Event) ? e.pageY : e.clientY + (document.documentElement.scrollTop ? document.documentElement.scrollTop : document.body.scrollTop);
+                    });
+
+                    board.addEventListener('mousedown', () => pressed = true);
+
+                    board.addEventListener('mouseup', () => pressed = false);
+
+                    draw();
                 }
             }
         }

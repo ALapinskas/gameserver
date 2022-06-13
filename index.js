@@ -58,39 +58,8 @@ io.sockets.on("connection", function (socket) {
     }
 
     function messageProcessing(message) {
-        if (socket.disconnected === true) {
-            log("remove rooms info for id: ", socket.id);
-            log(socket.adapter.rooms);
-            socket.adapter.rooms.forEach((roomInfo, room) => {
-                if (roomsInfo[room]) {
-                    log(
-                        "disconnect message processing, broadcast to ",
-                        socket.id
-                    );
-                    socket.broadcast
-                        .to(room)
-                        .emit("removed", roomsInfo[room][socket.id]);
-                    socket.leave(room);
-                    delete roomsInfo[room][socket.id];
-                    log("disconnected");
-                    log(roomsInfo[room]);
-                }
-            });
-        }
         socket.rooms.forEach((room) => {
-            if (roomsInfo[room] && message === "disconnect") {
-                log(
-                    "disconnect message processing, broadcast to ",
-                    socket.id
-                );
-                socket.broadcast
-                    .to(room)
-                    .emit("removed", roomsInfo[room][socket.id]);
-                socket.leave(room);
-                delete roomsInfo[room][socket.id];
-                log("disconnected");
-                log(roomsInfo[room]);
-            } else if (roomsInfo[room] && isCurrentSocketInRoom(room)) {
+            if (roomsInfo[room] && isCurrentSocketInRoom(room)) {
                 roomsInfo[room][socket.id] = message;
                 log("updated info:");
                 log(JSON.stringify(roomsInfo));
@@ -100,7 +69,7 @@ io.sockets.on("connection", function (socket) {
     }
 
     function isCurrentSocketInRoom(room) {
-        return Object.prototype.hasOwnProperty.call(roomsInfo[room], socket.id);
+        return socket.adapter.rooms.get(room).has(socket.id);
     }
 
     socket.on("message", function (message) {
