@@ -3,12 +3,13 @@
     <title>Tic-Tac-Toe game app</title>
     <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=0, minimum-scale=1.0, maximum-scale=1.0">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.0/socket.io.js"></script>
-    <script type="module" src="/node_modules/uikit/dist/uikit.min.js"></script>
+    <script type="module" src="node_modules/uikit/dist/uikit.min.js"></script>
 </head>
 <body>
-    <div class="controls">
-        <div id="whoseTurn"></div>
+    <div class="controls" style="text-align:center;padding-top:50px;">
+        <div id="whoseTurn" style="font-size:2rem;"></div>
         <button id="apply" disabled>Apply turn</button>
+        <button id="restart" onclick="location.reload()" style="display: none;">Start again</button>
     </div>
     <div id="board">
         
@@ -27,7 +28,7 @@
                     },
                     socket,
                     isCreator = false,
-                    applicationState = { whoseTurn:undefined, playerA:{turns:[]}, playerB:{turns:[]} },
+                    applicationState = { whoseTurn:undefined, playerA:{turns:[]}, opponent:{turns:[]} },
                     gameBoard,
                     boardOverlay,
                     loadingPopup = undefined,
@@ -38,7 +39,8 @@
                     curY,
                     pressed = false,
                     selectedCell,
-                    currentTurn = {};
+                    currentTurn = {},
+                    gameOver = false;
 
                 let popupContents = function() {
                     let wrapper = document.createElement('div'),
@@ -82,7 +84,7 @@
                             } else {
                                 console.log("play");
                                 roomValue = roomName.value.trim();
-                                socket = io("http://localhost:9000", {withCredentials: true});
+                                socket = io("https://alfa-webrtc-signaling.herokuapp.com", {withCredentials: true});
                                 socket.on("created", (room, map) => {
                                     console.log("room created! Waiting for other player...");
                                     optionsPopup.close();
@@ -111,8 +113,8 @@
                                         case "who_first":
                                             if(!isCreator) { 
                                                 applicationState.whoseTurn = message.whoseTurn;
-                                                applicationState.playerA.type = message.whoseTurn == 1 ? "cross" : "circle";
-                                                applicationState.playerB.type = message.whoseTurn == 1 ? "circle" : "cross";
+                                                applicationState.playerA.type = message.whoseTurn == 1 ? "circle":  "cross";
+                                                applicationState.opponent.type = message.whoseTurn == 1 ? "cross" : "circle";
                                                 console.log("Player " + message.whoseTurn + ", will be first!");
                                                 if(loadingPopup) loadingPopup.close();
                                                 drawBoard(applicationState.whoseTurn);
@@ -123,9 +125,11 @@
                                             console.log("received message from opponent!");
                                             console.log("new app state: ");
                                             console.log(applicationState);
-                                            applicationState = message.state;
-                                            drawDoneTurns()
+                                            applicationState.whoseTurn = message.state.whoseTurn;
+                                            applicationState.opponent = message.state.playerA;
+                                            drawDoneTurns();
                                             writeWhoseTurnMessage(applicationState.whoseTurn);
+                                            determineWinner("opponent");
                                     }
                                 });
                                 
@@ -156,7 +160,7 @@
                             let player = ~~(Math.random() * 2) + 1;
                             console.log("Player ", player, " will be first!");
                             applicationState.playerA.type = player === 1 ? "cross" : "circle";
-                            applicationState.playerB.type = player === 1 ? "circle" : "cross";
+                            applicationState.opponent.type = player === 1 ? "circle" : "cross";
                             applicationState.whoseTurn = player;
                             socket.emit("message", {type:"who_first", whoseTurn: player});
                             drawBoard(player);
@@ -283,24 +287,23 @@
 
                         let drawType;
                         console.log("clicked, application turn is by creator ?" , isCreator);
-                        
+                        if (gameOver) {
+                            message("This game has already over. Refresh your browser to start a new one.");
+                            return;
+                        }
                         if (whoseTurn(applicationState.whoseTurn) === "Its is your opponent turn") {
                             message("Its is your opponent turn now! Please wait...");
                         } else if (!isCellAlreadyOccupied(clickedCellX, clickedCellY)) {
-                            if(isCreator && applicationState.whoseTurn === 1) {
-                                drawType = applicationState.playerA.type;
-                            } else if (!isCreator && applicationState.whoseTurn === 2) {
-                                drawType = applicationState.playerB.type;
-                            }
+                            drawType = applicationState.playerA.type;
                             console.log("now it is turn: ", drawType);
                             ctxTurnsOverlay.clearRect(0, 0, boardOverlay.width, boardOverlay.height);
-                            drawSign(drawType, clickedCellX, clickedCellY);
+                            drawSign(drawType, clickedCellX, clickedCellY, true);
                             drawDoneTurns();
                             applyButton.disabled = false;
                         }
                     });
 
-                    drawSign = (drawType, clickedCellX, clickedCellY) => {
+                    drawSign = (drawType, clickedCellX, clickedCellY, playerTurn = false) => {
                         console.log("draw: ", drawType, " ", clickedCellX, " ", clickedCellY);
                         if(drawType === "circle") {
                             const centerX = clickedCellX * cellWidth + (cellWidth/2);
@@ -313,7 +316,9 @@
                             //ctxTurnsOverlay.fill();
                             ctxTurnsOverlay.lineWidth = 5;
                             ctxTurnsOverlay.stroke();
-                            currentTurn = { player: 2, x:clickedCellX, y: clickedCellY };
+                            if (playerTurn) {
+                                currentTurn = { x:clickedCellX, y: clickedCellY };
+                            }
                         } else {
                             const padding = 30,
                                 firstLineCordsA = {x: clickedCellX * cellWidth + padding, y: clickedCellY * cellWidth + padding},
@@ -332,9 +337,53 @@
                             ctxTurnsOverlay.lineTo(secondLineCordsB.x, secondLineCordsB.y);
                             ctxTurnsOverlay.lineWidth = 5;
                             ctxTurnsOverlay.stroke();
-                            currentTurn = { player: 1, x:clickedCellX, y: clickedCellY };
+                            if (playerTurn) {
+                                currentTurn = { x:clickedCellX, y: clickedCellY }; 
+                            }
                         }
+                        console.log("current turn: ", currentTurn);
+                    }
 
+                    drawWin = (key) => {
+                        console.log("draw win, key: ", key);
+                        ctxTurnsOverlay.beginPath();
+                        ctxTurnsOverlay.strokeStyle = "grey";
+                        switch(key) {
+                            case "0x":
+                                ctxTurnsOverlay.moveTo(cellWidth / 2, 20);
+                                ctxTurnsOverlay.lineTo(cellWidth / 2, cellWidth * 3 - 20);
+                                break;
+                            case "1x":
+                                ctxTurnsOverlay.moveTo(cellWidth + cellWidth / 2, 20);
+                                ctxTurnsOverlay.lineTo(cellWidth + cellWidth / 2, cellWidth * 3 - 20);
+                                break;
+                            case "2x":
+                                ctxTurnsOverlay.moveTo(cellWidth * 2 + cellWidth / 2, 20);
+                                ctxTurnsOverlay.lineTo(cellWidth * 2 + cellWidth / 2, cellWidth * 3 - 20);
+                                break;
+                            case "0y":
+                                ctxTurnsOverlay.moveTo(20, cellWidth / 2);
+                                ctxTurnsOverlay.lineTo(cellWidth * 3 - 20, cellWidth / 2);
+                                break;
+                            case "1y":
+                                ctxTurnsOverlay.moveTo(20, cellWidth + cellWidth / 2);
+                                ctxTurnsOverlay.lineTo(cellWidth * 3 - 20, cellWidth + cellWidth / 2);
+                                break;
+                            case "2y":
+                                ctxTurnsOverlay.moveTo(20, cellWidth + cellWidth / 2);
+                                ctxTurnsOverlay.lineTo(cellWidth * 3 - 20, cellWidth * 2 + cellWidth / 2);
+                                break;
+                            case "012":
+                                ctxTurnsOverlay.moveTo(cellWidth / 2, cellWidth / 2);
+                                ctxTurnsOverlay.lineTo(cellWidth * 2 + cellWidth / 2, cellWidth * 2 + cellWidth / 2);
+                                break;
+                            case "210":
+                                ctxTurnsOverlay.moveTo(cellWidth * 2 + cellWidth / 2, cellWidth / 2);
+                                ctxTurnsOverlay.lineTo(cellWidth / 2, cellWidth * 2 + cellWidth / 2);
+                                break;
+                        }
+                        ctxTurnsOverlay.lineWidth = 3;
+                        ctxTurnsOverlay.stroke();
                     }
                 }
 
@@ -342,8 +391,8 @@
                     applicationState.playerA.turns.forEach((turn) => {
                         drawSign(applicationState.playerA.type, turn.x, turn.y);
                     });
-                    applicationState.playerB.turns.forEach((turn) => {
-                        drawSign(applicationState.playerB.type, turn.x, turn.y);
+                    applicationState.opponent.turns.forEach((turn) => {
+                        drawSign(applicationState.opponent.type, turn.x, turn.y);
                     });
                 }
 
@@ -354,7 +403,7 @@
                             isOccupied = true;
                         }
                     });
-                    applicationState.playerB.turns.forEach((turn) => {
+                    applicationState.opponent.turns.forEach((turn) => {
                         if (turn.x === x && turn.y === y) {
                             isOccupied = true;
                         }
@@ -364,25 +413,72 @@
 
                 applyButton.addEventListener("click", () => {
                     console.log("pass turn to other player");
-                    if(currentTurn.player === 1) {
-                        if(applicationState.playerA.type === "cross") {
-                            applicationState.playerA.turns.push({x:currentTurn.x, y:currentTurn.y});
-                        } else {
-                            applicationState.playerB.turns.push({x:currentTurn.x, y:currentTurn.y});
-                        }
-                    } else {
-                        if(applicationState.playerA.type === "circle") {
-                            applicationState.playerA.turns.push({x:currentTurn.x, y:currentTurn.y});
-                        } else {
-                            applicationState.playerB.turns.push({x:currentTurn.x, y:currentTurn.y});
-                        }
-                    }
+                    console.log(currentTurn);
+                    applicationState.playerA.turns.push({x:currentTurn.x, y:currentTurn.y});
                     applicationState.whoseTurn = applicationState.whoseTurn === 1 ? 2 : 1;
                     console.log(applicationState);
+                    determineWinner("you");
                     socket.emit("message", {type:"turn_pass", state: applicationState});
                     applyButton.disabled = true;
                     writeWhoseTurnMessage(applicationState.whoseTurn);
                 });
+
+                const determineWinner = (who) => {
+                    if (who === "you") {
+                        isWinner(applicationState.playerA.turns, who);
+                    } else {
+                        isWinner(applicationState.opponent.turns, who);
+                    }
+                }
+
+                const isWinner = (turns, who) => {
+                    let winsCount = {"0x": [], "1x":[],"2x":[], "0y": [], "1y": [], "2y":[], "012":[], "210":[]};
+                    turns.forEach((turn) => {
+                        switch (turn.x) {
+                            case 0:
+                                winsCount["0x"].push(turn.y);
+                                break;
+                            case 1:
+                                winsCount["1x"].push(turn.y);
+                                break;
+                            case 2:
+                                winsCount["2x"].push(turn.y);
+                                break;
+                        }
+                        switch(turn.y) {
+                            case 0:
+                                winsCount["0y"].push(turn.x);
+                                break;
+                            case 1:
+                                winsCount["1y"].push(turn.x);
+                                break;
+                            case 2:
+                                winsCount["2y"].push(turn.x);
+                                break;
+                        }
+                        if ((turn.x === 0 && turn.y === 0) || (turn.x === 1 && turn.y === 1) || (turn.x === 2 && turn.y ===2)) {
+                            winsCount["012"].push("xy");
+                        }
+                        if ((turn.x === 2 && turn.y === 0) || (turn.x === 1 && turn.y === 1) || (turn.x === 0 && turn.y ===2)) {
+                            winsCount["210"].push("xy");
+                        }
+                    });
+                    Object.keys(winsCount).forEach((winKey) => {
+                        if(winsCount[winKey].length === 3) {
+                            drawWin(winKey);
+                            if (who === "you") {
+                                writeWinMessage("Congratulations, you win!");
+                            } else {
+                                writeWinMessage("Your opponent wins!");
+                            }
+                            setGameOver();
+                        }
+                    });
+                    if(!gameOver && (applicationState.playerA.turns.length + applicationState.opponent.turns.length === 9)) {
+                        writeWinMessage("Draft!");
+                        setGameOver();
+                    }
+                }
 
                 function whoseTurn (player) {
                     if (typeof player !== "number") {
@@ -396,6 +492,19 @@
 
                     whoseTurnDiv.innerText = whoseTurn(player);
                 } 
+
+                function writeWinMessage(message) {
+                    const whoseTurnDiv = document.getElementById("whoseTurn");
+
+                    whoseTurnDiv.innerText = message;
+                    alert(message);
+                }
+
+                function setGameOver() {
+                    const restartButton = document.getElementById("restart");
+                    restartButton.style.display = "inline-block";
+                    gameOver = true;
+                }
 
                 function message (message) {
                     alert(message);
