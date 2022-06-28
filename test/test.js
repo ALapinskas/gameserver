@@ -20,8 +20,10 @@ describe("protocol", () => {
             
         player1.on("created", (room, map) => {
             console.log("created, room: ", room, " map: ", map);
+            console.log(player1.id);
+            console.log(map.playersInRoom);
             assert.ok(room === roomName);
-            assert.deepEqual(map, mapObject);
+            assert.ok(map.mapParams === mapObject.mapParams);
             player1.close();
         });
 
@@ -69,13 +71,13 @@ describe("protocol", () => {
         player1.on("created", (room, map) => {
             console.log("1 created, room: ", room, " map: ", map);
             assert.ok(room === roomName);
-            assert.deepEqual(map, mapObject);
+            assert.ok(map.mapParams === mapObject.mapParams);
         });
 
         player1.on("joined", (room, map) => {
             console.log("1 joined, room: ", room, " map: ", map);
             assert.ok(room === roomName);
-            assert.deepEqual(map, mapObject);
+            assert.ok(map.mapParams === mapObject.mapParams);
             player1.close();
             player2.close();
         });
@@ -115,7 +117,7 @@ describe("protocol", () => {
         player2.on("joined", (room, map) => {
             console.log("2 joined, room: ", room, " map: ", map);
             assert.ok(room === roomName);
-            assert.deepEqual(map, mapObject);
+            assert.ok(map.mapParams === mapObject.mapParams);
         });
         player2.on("log", (message) => {
             console.log("2 log from server ", message);
@@ -148,27 +150,32 @@ describe("protocol", () => {
         player2.emit("create or join", roomName);
     });
 
-    it("player1 creates room, player2 join, player1 send message, player2 receives it", (done) => {
-        const roomName = "default3",
-            mapObject = { mapParams: true },
-            messageFromPlayer1 = "message from player1";
+    it("player1 creates room, player2 join, player 2 disconnect, player 1 received a disconnected message", (done) => {
+        const roomName = "default4",
+            mapObject = { mapParams: true };
+        let player2Id;
         
         player1.on("created", (room, map) => {
             console.log("1 created, room: ", room, " map: ", map);
             assert.ok(room === roomName);
-            assert.deepEqual(map, mapObject);
+            assert.ok(map.mapParams === mapObject.mapParams);
+            player2.emit("create or join", roomName);
         });
 
         player1.on("joined", (room, map) => {
             console.log("1 joined, room: ", room, " map: ", map);
             assert.ok(room === roomName);
-            assert.deepEqual(map, mapObject);
-            player1.emit("message", messageFromPlayer1);
+            assert.ok(map.mapParams === mapObject.mapParams);
         });
 
         player1.on("log", (message) => {
             console.log("1 log from server ", message);
         });
+
+        player1.on("disconnected", (id) => {
+            assert.ok(player2Id === id);
+            player1.close();
+        })
 
         player1.on("disconnect", (reason) => {
             console.log("disconnect 1");
@@ -181,6 +188,7 @@ describe("protocol", () => {
                 player1.removeAllListeners("created");
                 player1.removeAllListeners("log");
                 player1 = undefined;
+                done();
             }
         });
 
@@ -201,7 +209,95 @@ describe("protocol", () => {
         player2.on("joined", (room, map) => {
             console.log("2 joined, room: ", room, " map: ", map);
             assert.ok(room === roomName);
-            assert.deepEqual(map, mapObject);
+            assert.ok(map.mapParams === mapObject.mapParams);
+            player2Id = player2.id;
+            player2.close();
+        });
+        player2.on("log", (message) => {
+            console.log("2 log from server ", message);
+        });
+        player2.on("full", (message) => {
+            console.log("2 room is full");
+            done(new Error("Shouldn't receive full"));
+        });
+        player2.on("message", (message) => {
+            console.log("2 message: ", message);
+            done(new Error("Shouldn't receive any message"));
+        });
+
+        player2.on("disconnect", (reason) => {
+            console.log("disconnect 2");
+            console.log(reason);
+            if(reason === "io client disconnect") {
+                console.log("cleanup 2");
+                player2.removeAllListeners("full");
+                player2.removeAllListeners("message");
+                player2.removeAllListeners("joined");
+                player2.removeAllListeners("created");
+                player2.removeAllListeners("log");
+                player2 = undefined;
+            }
+        });
+
+        player1.emit("create or join", roomName, mapObject);
+    });
+
+    it("player1 creates room, player2 join, player1 send message, player2 receives it", (done) => {
+        const roomName = "default3",
+            mapObject = { mapParams: true },
+            messageFromPlayer1 = "message from player1";
+        
+        player1.on("created", (room, map) => {
+            console.log("1 created, room: ", room, " map: ", map);
+            assert.ok(room === roomName);
+            assert.ok(map.mapParams === mapObject.mapParams);
+            player2.emit("create or join", roomName);
+        });
+
+        player1.on("joined", (room, map) => {
+            console.log("1 joined, room: ", room, " map: ", map);
+            assert.ok(room === roomName);
+            assert.ok(map.mapParams === mapObject.mapParams);
+            player1.emit("message", messageFromPlayer1);
+        });
+
+        player1.on("log", (message) => {
+            console.log("1 log from server ", message);
+        });
+
+        player1.on("disconnect", (reason) => {
+            console.log("disconnect 1");
+            console.log(reason);
+            if(reason === "io client disconnect") {
+                console.log("cleanup 1");
+                player1.removeAllListeners("full");
+                player1.removeAllListeners("message");
+                player1.removeAllListeners("joined");
+                player1.removeAllListeners("created");
+                player1.removeAllListeners("log");
+                player1 = undefined;
+                player2.close();
+            }
+        });
+
+        player1.on("full", (message) => {
+            console.log("1 room is full");
+            done(new Error("Shouldn't receive full"));
+        });
+
+        player1.on("message", (message) => {
+            console.log("1 message: ", message);
+            done(new Error("Shouldn't receive any message"));
+        });
+        
+        player2.on("created", (room, map) => {
+            console.log("2 created, room: ", room, " map: ", map);
+            done(new Error("Shouldn't receive created"));
+        });
+        player2.on("joined", (room, map) => {
+            console.log("2 joined, room: ", room, " map: ", map);
+            assert.ok(room === roomName);
+            assert.ok(map.mapParams === mapObject.mapParams);
         });
         player2.on("log", (message) => {
             console.log("2 log from server ", message);
@@ -213,7 +309,7 @@ describe("protocol", () => {
         player2.on("message", (message) => {
             console.log("2 message: ", message);
             assert.ok(messageFromPlayer1);
-            done();
+            player1.close();
         });
 
         player2.on("disconnect", (reason) => {
@@ -232,6 +328,5 @@ describe("protocol", () => {
         });
 
         player1.emit("create or join", roomName, mapObject);
-        player2.emit("create or join", roomName);
     });
 });

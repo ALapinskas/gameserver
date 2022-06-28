@@ -60,7 +60,7 @@ io.sockets.on("connection", function (socket) {
     function messageProcessing(message) {
         socket.rooms.forEach((room) => {
             if (roomsInfo[room] && isCurrentSocketInRoom(room)) {
-                roomsInfo[room][socket.id] = message;
+                roomsInfo[room].message = message;
                 log("updated info:");
                 log(JSON.stringify(roomsInfo));
                 socket.broadcast.to(room).emit("message", message);
@@ -87,9 +87,12 @@ io.sockets.on("connection", function (socket) {
     socket.on("create or join", function (room, map = {}, maxPlayers = 2) {
         log("Received request to create or join room " + room);
         if (roomsInfo[room]) {
+            console.log(roomsInfo);
             map = roomsInfo[room];
+            map.playersInRoom.push(socket.id);
             log("map already exist in this room: ", map);
         } else {
+            map.playersInRoom = [socket.id];
             roomsInfo[room] = map;
         }
         ///////////
@@ -115,5 +118,12 @@ io.sockets.on("connection", function (socket) {
 
     socket.on("disconnect", function (reason) {
         log("received bye");
+        Object.keys(roomsInfo).forEach((room) => {
+            let deletedSocketIndex = roomsInfo[room] && roomsInfo[room].playersInRoom ? roomsInfo[room].playersInRoom.indexOf(socket.id) : -1;
+            if(deletedSocketIndex !== -1) {
+                roomsInfo[room].playersInRoom.splice(deletedSocketIndex, 1);
+                io.sockets.in(room).emit("disconnected", socket.id);
+            }
+        });
     });
 });

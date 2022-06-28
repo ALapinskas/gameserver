@@ -28,12 +28,13 @@ Websocket server to hold, and track users, and share data between them.
     ______________________________________________________________________________
     |   event      | parameters | receiver | info                                |
     ______________________________________________________________________________
-        'roomsInfo'  rooms:Array  conn peer  Received after gatherRoomsInfo will be emitted
-        'created'    room map    conn peer   Received after a new room has been created    
-        'joined'     room, map    all peers  Received when somebody joined to a room  
-        'full'       room         conn peer  Received when tried to join for overflowed room
-        'log'        message      conn peer  Debug logging
-        'message'    message      all peers  Received, when somebody, emits 'message' event
+     'roomsInfo'     rooms:Array  conn peer  Received after gatherRoomsInfo will be emitted
+     'created'       room map    conn peer   Received after a new room has been created    
+     'joined'        room, map    all peers  Received when somebody joined to a room  
+     'full'          room         conn peer  Received when tried to join for overflowed room
+     'log'           message      conn peer  Debug logging
+     'message'       message      all peers  Received, when somebody, emits 'message' event
+     'disconnected'  socketId     all peers  Received, when somebody disconnects
 
 # Recommended way to use:
     1. Connect to the socket(by default it will be running on 9000 port), handle the rooms information

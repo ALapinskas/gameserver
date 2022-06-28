@@ -84,7 +84,7 @@
                             } else {
                                 console.log("play");
                                 roomValue = roomName.value.trim();
-                                socket = io("https://alfa-webrtc-signaling.herokuapp.com", {withCredentials: true});
+                                socket = io("localhost:9000", {withCredentials: true});
                                 socket.on("created", (room, map) => {
                                     console.log("room created! Waiting for other player...");
                                     optionsPopup.close();
@@ -132,8 +132,14 @@
                                             determineWinner("opponent");
                                     }
                                 });
+
+                                socket.on("disconnect", (reason) => {
+                                    console.log("opponent disconnected");
+                                });
                                 
                                 socket.emit('create or join', roomValue, applicationState);
+
+                                console.log("set unload event");
                             }
                         }
                     });
