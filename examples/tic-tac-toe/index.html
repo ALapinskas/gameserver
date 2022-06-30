@@ -7,17 +7,33 @@
 </head>
 <body>
     <div class="controls" style="text-align:center;padding-top:50px;">
+        <div id="winsCount" style="padding-left:20%;text-align: left;">
+            <table>
+                <tr id="round">
+                    <td>Round</td>
+                </tr>
+                <tr id="you">
+                    <td>You</td>
+                </tr>
+                <tr id="opponent">
+                    <td>Opponent</td>
+                </tr>
+            </table>
+        </div>
         <div id="whoseTurn" style="font-size:2rem;"></div>
-        <button id="apply" disabled>Apply turn</button>
-        <button id="restart" onclick="location.reload()" style="display: none;">Start again</button>
+        <div>
+            <button id="apply" style="width:150px; height:70px;" disabled>Apply turn</button>
+            <button id="restart" style="width:150px; height:70px;display: none;">Start again</button>
+        </div>
     </div>
-    <div id="board">
+    <div id="board" style="display: flex; justify-content: center;">
         
     </div>
     <script>
         document.onreadystatechange = function () {
             if (document.readyState == "complete") {
-                const applyButton = document.getElementById("apply");
+                const applyButton = document.getElementById("apply"),
+                    restartButton = document.getElementById("restart");
                 let popup = window.uikit.Popup,
                     formSwitcher = window.uikit.FormSwitchers,
                     formInput = window.uikit.FormInput,
@@ -28,7 +44,7 @@
                     },
                     socket,
                     isCreator = false,
-                    applicationState = { whoseTurn:undefined, playerA:{turns:[]}, opponent:{turns:[]} },
+                    applicationState = { whoseTurn:undefined, playerA:{ turns:[] }, opponent:{ turns:[] } },
                     gameBoard,
                     boardOverlay,
                     loadingPopup = undefined,
@@ -40,7 +56,9 @@
                     pressed = false,
                     selectedCell,
                     currentTurn = {},
-                    gameOver = false;
+                    gameOver = false,
+                    isBoardDrawn = false,
+                    disconnected = false;
 
                 let popupContents = function() {
                     let wrapper = document.createElement('div'),
@@ -85,22 +103,38 @@
                                 console.log("play");
                                 roomValue = roomName.value.trim();
                                 socket = io("localhost:9000", {withCredentials: true});
+
                                 socket.on("created", (room, map) => {
                                     console.log("room created! Waiting for other player...");
                                     optionsPopup.close();
                                     loadingPopup = new popup("loading", loadingContents(), true);
                                     isCreator = true;
                                 });
+
                                 socket.on("joined", (room, map) => {
                                     console.log("some body joined! Starting the game!");
                                     optionsPopup.close();
+                                    if (loadingPopup) loadingPopup.close();
                                     applicationState = map;
-                                    if(loadingPopup) loadingPopup.close();
                                     console.log("whose turn: ", applicationState.whoseTurn);
-                                    if(typeof applicationState.whoseTurn === "undefined") {
+                                    if (typeof applicationState.whoseTurn === "undefined") {
                                         whoseTurnPopup = new popup("whoseTurn", whoseTurnContents(), true);
+                                    } else if (!isBoardDrawn) {
+                                        writeWhoseTurnMessage(applicationState.whoseTurn);
+                                        drawBoard(applicationState.whoseTurn);
+                                        determineWinner("opponent");
+                                        drawDoneTurns();
                                     }
                                 });
+
+                                socket.on("restarted", (newMap) => {
+                                    console.log("restarting the game");
+                                    applicationState = newMap;
+                                    restartButton.style.display = "none";
+                                    gameOver = false;
+                                    whoseTurnPopup = new popup("whoseTurn", whoseTurnContents("Starting new game! Randomly choosing first player turn..."), true);
+                                });
+
                                 socket.on("log", (message) => {
                                     console.log("log from server: ", message);
                                 });
@@ -111,7 +145,7 @@
                                     console.log("message from server: ", message);
                                     switch(message.type) {
                                         case "who_first":
-                                            if(!isCreator) { 
+                                            if(!isCreator) {
                                                 applicationState.whoseTurn = message.whoseTurn;
                                                 applicationState.playerA.type = message.whoseTurn == 1 ? "circle":  "cross";
                                                 applicationState.opponent.type = message.whoseTurn == 1 ? "cross" : "circle";
@@ -133,13 +167,17 @@
                                     }
                                 });
 
-                                socket.on("disconnect", (reason) => {
+                                socket.on("disconnected", (reason) => {
                                     console.log("opponent disconnected");
+                                    if(!gameOver) {
+                                        message("Your opponent has been disconnected, start again!");
+                                        setGameOver();
+                                        disconnected = true;
+                                    }
+                                    //loadingPopup = new popup("loading", loadingContents(true), true);
                                 });
                                 
                                 socket.emit('create or join', roomValue, applicationState);
-
-                                console.log("set unload event");
                             }
                         }
                     });
@@ -147,34 +185,36 @@
                     wrapper.appendChild(submitButton);
                     return wrapper;
                 }
-                const loadingContents = () => {
+                const loadingContents = (isDisconnected = false) => {
                     let wrapper = document.createElement("div"),
                         text = document.createElement("p");
                     wrapper.innerHTML = '<iframe src="https://upload.wikimedia.org/wikipedia/commons/b/b1/Loading_icon.gif" frameBorder="0" class="giphy-embed" allowFullScreen></iframe>';
-                    text.innerText = ("Waiting other player to join, please ask your friend to go to the address: " + window.location + ", and join the room: " + roomValue);
+                    text.innerText = (isDisconnected ? "Your opponent has been disconnected, waiting for rejoin, " : "Waiting other player to join, please ask your friend to go to the ") + "address: " + window.location + ", and room: " + roomValue;
                     wrapper.appendChild(text);
                     wrapper.style.padding = "10px";
                     return wrapper;
                 }
-                const whoseTurnContents = () => {
+
+                const whoseTurnContents = (message) => {
                     let wrapper = document.createElement("div"),
                         text = document.createElement("p");
                     wrapper.innerHTML = '<iframe src="https://upload.wikimedia.org/wikipedia/commons/b/b1/Loading_icon.gif" frameBorder="0" class="giphy-embed" allowFullScreen></iframe>';
-                    text.innerText = ("Randomly choosing first player turn.");
+                    text.innerText = (!message ? "Successfully connected! Randomly choosing first player turn...": message);
                     if(isCreator) {
-                        setTimeout(() => {
+                        setTimeout( () => {
                             let player = ~~(Math.random() * 2) + 1;
                             console.log("Player ", player, " will be first!");
                             applicationState.playerA.type = player === 1 ? "cross" : "circle";
                             applicationState.opponent.type = player === 1 ? "circle" : "cross";
                             applicationState.whoseTurn = player;
-                            socket.emit("message", {type:"who_first", whoseTurn: player});
+                            socket.emit("message", { type: "who_first", whoseTurn: player });
                             drawBoard(player);
                             if(whoseTurnPopup) {
                                 whoseTurnPopup.close();
                             }
                         }, 3000);
                     }
+                    wrapper.appendChild(text);
                     return wrapper;
                 }
 
@@ -185,6 +225,10 @@
                         windowHeight = window.innerHeight,
                         boardDiv = document.getElementById("board");
 
+                    //cleanup on restart
+                    while(boardDiv.firstChild) {
+                        boardDiv.firstChild.remove();
+                    }
                     let boardWidth = windowWidth,
                         cellWidth = boardWidth / 3;
 
@@ -220,22 +264,16 @@
                     gameBoard.height = boardWidth;
 
                     gameBoard.style.position = "absolute";
-                    gameBoard.style.left = "25%";
-                    gameBoard.style.top = "25%";
 
                     boardOverlay.width = boardWidth;
                     boardOverlay.height = boardWidth;
 
                     boardOverlay.style.position = "absolute";
-                    boardOverlay.style.left = "25%";
-                    boardOverlay.style.top = "25%";
 
                     turnsOverlay.width = boardWidth;
                     turnsOverlay.height = boardWidth;
 
                     turnsOverlay.style.position = "absolute";
-                    turnsOverlay.style.left = "25%";
-                    turnsOverlay.style.top = "25%";
 
                     ctxBoard.fillStyle = "rgba(255, 255, 255, 0.3)";
                     ctxOverlay.fillStyle = "rgba(0, 0, 0, 0)"; 
@@ -297,7 +335,7 @@
                             message("This game has already over. Refresh your browser to start a new one.");
                             return;
                         }
-                        if (whoseTurn(applicationState.whoseTurn) === "Its is your opponent turn") {
+                        if (whoseTurn(applicationState.whoseTurn).includes("Its is your opponent turn.")) {
                             message("Its is your opponent turn now! Please wait...");
                         } else if (!isCellAlreadyOccupied(clickedCellX, clickedCellY)) {
                             drawType = applicationState.playerA.type;
@@ -308,47 +346,6 @@
                             applyButton.disabled = false;
                         }
                     });
-
-                    drawSign = (drawType, clickedCellX, clickedCellY, playerTurn = false) => {
-                        console.log("draw: ", drawType, " ", clickedCellX, " ", clickedCellY);
-                        if(drawType === "circle") {
-                            const centerX = clickedCellX * cellWidth + (cellWidth/2);
-                            const centerY = clickedCellY * cellWidth + (cellWidth/2);
-                            const radius = cellWidth/2 - 20;
-
-                            ctxTurnsOverlay.beginPath();
-                            ctxTurnsOverlay.arc(centerX, centerY, radius, 0, 2 * Math.PI, false);
-                            //ctxTurnsOverlay.fillStyle = 'transparent';
-                            //ctxTurnsOverlay.fill();
-                            ctxTurnsOverlay.lineWidth = 5;
-                            ctxTurnsOverlay.stroke();
-                            if (playerTurn) {
-                                currentTurn = { x:clickedCellX, y: clickedCellY };
-                            }
-                        } else {
-                            const padding = 30,
-                                firstLineCordsA = {x: clickedCellX * cellWidth + padding, y: clickedCellY * cellWidth + padding},
-                                firstLineCordsB = {x: clickedCellX * cellWidth + cellWidth - padding, y: clickedCellY * cellWidth + cellWidth - padding},
-                                secondLineCordsA = {x: clickedCellX * cellWidth  + cellWidth - padding, y: clickedCellY * cellWidth + padding},
-                                secondLineCordsB = {x: clickedCellX * cellWidth + padding, y: clickedCellY * cellWidth + cellWidth - padding};
-
-                            ctxTurnsOverlay.beginPath();
-                            ctxTurnsOverlay.moveTo(firstLineCordsA.x, firstLineCordsA.y);
-                            ctxTurnsOverlay.lineTo(firstLineCordsB.x, firstLineCordsB.y);
-                            ctxTurnsOverlay.lineWidth = 5;
-                            ctxTurnsOverlay.stroke();
-                            
-                            ctxTurnsOverlay.beginPath();
-                            ctxTurnsOverlay.moveTo(secondLineCordsA.x, secondLineCordsA.y);
-                            ctxTurnsOverlay.lineTo(secondLineCordsB.x, secondLineCordsB.y);
-                            ctxTurnsOverlay.lineWidth = 5;
-                            ctxTurnsOverlay.stroke();
-                            if (playerTurn) {
-                                currentTurn = { x:clickedCellX, y: clickedCellY }; 
-                            }
-                        }
-                        console.log("current turn: ", currentTurn);
-                    }
 
                     drawWin = (key) => {
                         console.log("draw win, key: ", key);
@@ -391,6 +388,53 @@
                         ctxTurnsOverlay.lineWidth = 3;
                         ctxTurnsOverlay.stroke();
                     }
+                    isBoardDrawn = true;
+                }
+
+                const drawSign = (drawType, clickedCellX, clickedCellY, playerTurn = false) => {
+                    console.log("draw: ", drawType, " ", clickedCellX, " ", clickedCellY);
+                    const turnsOverlay = document.getElementById("TurnsOverlay"),
+                        ctxTurnsOverlay = turnsOverlay.getContext("2d"),
+                        boardWidth = turnsOverlay.width,
+                        cellWidth = boardWidth / 3;
+
+                    if(drawType === "circle") {
+                        const centerX = clickedCellX * cellWidth + (cellWidth/2);
+                        const centerY = clickedCellY * cellWidth + (cellWidth/2);
+                        const radius = cellWidth/2 - 20;
+
+                        ctxTurnsOverlay.beginPath();
+                        ctxTurnsOverlay.arc(centerX, centerY, radius, 0, 2 * Math.PI, false);
+                        //ctxTurnsOverlay.fillStyle = 'transparent';
+                        //ctxTurnsOverlay.fill();
+                        ctxTurnsOverlay.lineWidth = 5;
+                        ctxTurnsOverlay.stroke();
+                        if (playerTurn) {
+                            currentTurn = { x:clickedCellX, y: clickedCellY };
+                        }
+                    } else {
+                        const padding = 30,
+                            firstLineCordsA = {x: clickedCellX * cellWidth + padding, y: clickedCellY * cellWidth + padding},
+                            firstLineCordsB = {x: clickedCellX * cellWidth + cellWidth - padding, y: clickedCellY * cellWidth + cellWidth - padding},
+                            secondLineCordsA = {x: clickedCellX * cellWidth  + cellWidth - padding, y: clickedCellY * cellWidth + padding},
+                            secondLineCordsB = {x: clickedCellX * cellWidth + padding, y: clickedCellY * cellWidth + cellWidth - padding};
+
+                        ctxTurnsOverlay.beginPath();
+                        ctxTurnsOverlay.moveTo(firstLineCordsA.x, firstLineCordsA.y);
+                        ctxTurnsOverlay.lineTo(firstLineCordsB.x, firstLineCordsB.y);
+                        ctxTurnsOverlay.lineWidth = 5;
+                        ctxTurnsOverlay.stroke();
+                        
+                        ctxTurnsOverlay.beginPath();
+                        ctxTurnsOverlay.moveTo(secondLineCordsA.x, secondLineCordsA.y);
+                        ctxTurnsOverlay.lineTo(secondLineCordsB.x, secondLineCordsB.y);
+                        ctxTurnsOverlay.lineWidth = 5;
+                        ctxTurnsOverlay.stroke();
+                        if (playerTurn) {
+                            currentTurn = { x:clickedCellX, y: clickedCellY }; 
+                        }
+                    }
+                    console.log("current turn: ", currentTurn);
                 }
 
                 const drawDoneTurns = () => {
@@ -422,11 +466,14 @@
                     console.log(currentTurn);
                     applicationState.playerA.turns.push({x:currentTurn.x, y:currentTurn.y});
                     applicationState.whoseTurn = applicationState.whoseTurn === 1 ? 2 : 1;
+                    applicationState.opponent.type = applicationState.playerA.type === "cross" ? "circle" : "cross";
                     console.log(applicationState);
                     determineWinner("you");
                     socket.emit("message", {type:"turn_pass", state: applicationState});
                     applyButton.disabled = true;
-                    writeWhoseTurnMessage(applicationState.whoseTurn);
+                    if(!gameOver) {
+                        writeWhoseTurnMessage(applicationState.whoseTurn);
+                    }
                 });
 
                 const determineWinner = (who) => {
@@ -473,15 +520,15 @@
                         if(winsCount[winKey].length === 3) {
                             drawWin(winKey);
                             if (who === "you") {
-                                writeWinMessage("Congratulations, you win!");
+                                writeWinMessage("You", "Congratulations, you win!");
                             } else {
-                                writeWinMessage("Your opponent wins!");
+                                writeWinMessage("Opponent", "Your opponent wins!");
                             }
                             setGameOver();
                         }
                     });
                     if(!gameOver && (applicationState.playerA.turns.length + applicationState.opponent.turns.length === 9)) {
-                        writeWinMessage("Draft!");
+                        writeWinMessage("Draft", "Draft!");
                         setGameOver();
                     }
                 }
@@ -490,7 +537,7 @@
                     if (typeof player !== "number") {
                         console.error("wrong type on whose turn check!");
                     }
-                    return player == 1 ? isCreator ? "Its your turn now" : "Its is your opponent turn" : isCreator ? "Its is your opponent turn" : "Its your turn now"; 
+                    return player == 1 ? isCreator ? "Its your turn now. Your sign is " + applicationState.playerA.type + ".": "Its is your opponent turn." : isCreator ? "Its is your opponent turn." : "Its your turn now. Your sign is " + applicationState.playerA.type + "."; 
                 }
 
                 function writeWhoseTurnMessage(player) {
@@ -499,15 +546,14 @@
                     whoseTurnDiv.innerText = whoseTurn(player);
                 } 
 
-                function writeWinMessage(message) {
+                function writeWinMessage(who, message) {
                     const whoseTurnDiv = document.getElementById("whoseTurn");
 
                     whoseTurnDiv.innerText = message;
-                    alert(message);
+                    addWinnerCount(who);
                 }
 
                 function setGameOver() {
-                    const restartButton = document.getElementById("restart");
                     restartButton.style.display = "inline-block";
                     gameOver = true;
                 }
@@ -515,6 +561,44 @@
                 function message (message) {
                     alert(message);
                 }
+
+                function addWinnerCount (who) {
+                    let roundTr = document.getElementById("round"),
+                        youTr = document.getElementById("you"),
+                        oppTr = document.getElementById("opponent"),
+                        roundTds = roundTr.getElementsByTagName('td'),
+                        latestCount = ~~roundTds[roundTds.length - 1].innerText,
+                        newCountDiv = document.createElement("td"),
+                        newYouTr = document.createElement("td"),
+                        newOppTr = document.createElement("td");
+                        
+                    latestCount += 1;
+                    newCountDiv.innerText = latestCount;
+                    console.log("round #", latestCount);
+                    switch(who) {
+                        case "You":
+                            newYouTr.innerText = "x";
+                            break;
+                        case "Opponent":
+                            newOppTr.innerText = "x";
+                            break;
+                        case "Draft":
+                            break;
+                    }
+                    roundTr.appendChild(newCountDiv)
+                    youTr.appendChild(newYouTr);
+                    oppTr.appendChild(newOppTr);
+                }
+
+                restartButton.addEventListener("click", () => {
+                    console.log("clicked restart");
+                    if(disconnected) {
+                        window.location.reload();
+                    } else {
+                        gameOver = false;
+                        socket.emit("restart", {whoseTurn:undefined, playerA:{ turns:[] }, opponent:{ turns:[] }})
+                    }
+                })
             }
         }
     </script>

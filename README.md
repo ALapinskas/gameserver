@@ -18,9 +18,11 @@ Websocket server to hold, and track users, and share data between them.
     |   event             | parameters              |
     _________________________________________________
     |   'gatherRoomsInfo' |                         |   
-    |   'create or join'  | room:string, 
-    |                     | map:Object = {},        |
+    |   'create or join'  | room:string,            |
+    |                     | state:Object = {},      |
     |                     | maxPlayers:number = 2   |
+    |                     | maxMessages:number = 10 |
+    |   'restart'         | state:Object = {}       |
     |   'message'         | message:Object          |
     _________________________________________________ 
 
@@ -29,12 +31,14 @@ Websocket server to hold, and track users, and share data between them.
     |   event      | parameters | receiver | info                                |
     ______________________________________________________________________________
      'roomsInfo'     rooms:Array  conn peer  Received after gatherRoomsInfo will be emitted
-     'created'       room map    conn peer   Received after a new room has been created    
-     'joined'        room, map    all peers  Received when somebody joined to a room  
+     'created'       room state   conn peer  Received after a new room has been created    
+     'joined'        room, state  all peers  Received when somebody joined to a room  
      'full'          room         conn peer  Received when tried to join for overflowed room
      'log'           message      conn peer  Debug logging
      'message'       message      all peers  Received, when somebody, emits 'message' event
      'disconnected'  socketId     all peers  Received, when somebody disconnects
+     'restarted'     state        all peers  Received, when somebody emits 'restart' event, and
+                                              resets the application state
 
 # Recommended way to use:
     1. Connect to the socket(by default it will be running on 9000 port), handle the rooms information

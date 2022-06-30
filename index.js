@@ -15,6 +15,7 @@ const io = socketIO(app, {
     },
     pingTimeout: INACTIVITY_TIME,
 });
+let MAX_MESSAGES = 10;
 
 io.sockets.on("connection", function (socket) {
     async function log(message, sendToClient = false) {
@@ -60,7 +61,14 @@ io.sockets.on("connection", function (socket) {
     function messageProcessing(message) {
         socket.rooms.forEach((room) => {
             if (roomsInfo[room] && isCurrentSocketInRoom(room)) {
-                roomsInfo[room].message = message;
+                if(!roomsInfo[room].messages) {
+                    roomsInfo[room].messages = [message];
+                } else if (roomsInfo[room].messages.length < MAX_MESSAGES) {
+                    roomsInfo[room].messages.push(message);
+                } else {
+                    roomsInfo[room].messages.splice(0, 1);
+                    roomsInfo[room].messages.push(message);
+                }
                 log("updated info:");
                 log(JSON.stringify(roomsInfo));
                 socket.broadcast.to(room).emit("message", message);
@@ -84,16 +92,30 @@ io.sockets.on("connection", function (socket) {
         socket.emit("roomsInfo", roomsInfo);
     });
 
-    socket.on("create or join", function (room, map = {}, maxPlayers = 2) {
+    socket.on("restart", (state = {}) => {
+        socket.rooms.forEach((room) => {
+            if (roomsInfo[room] && isCurrentSocketInRoom(room)) {
+                log("Received request to restart the room " + room); 
+                if (roomsInfo[room]) {
+                    state.playersInRoom = roomsInfo[room].playersInRoom;
+                }
+                roomsInfo[room] = state;
+                io.sockets.in(room).emit("restarted", state);
+            }
+        });
+    });
+
+    socket.on("create or join", function (room, state = {}, maxPlayers = 2, maxMessages = 10) {
         log("Received request to create or join room " + room);
         if (roomsInfo[room]) {
             console.log(roomsInfo);
-            map = roomsInfo[room];
-            map.playersInRoom.push(socket.id);
-            log("map already exist in this room: ", map);
+            state = roomsInfo[room];
+            state.playersInRoom.push(socket.id);
+            log("state already exist in this room: ", state);
         } else {
-            map.playersInRoom = [socket.id];
-            roomsInfo[room] = map;
+            MAX_MESSAGES = maxMessages ? maxMessages : MAX_MESSAGES;
+            state.playersInRoom = [socket.id];
+            roomsInfo[room] = state;
         }
         ///////////
         log("client added");
@@ -105,11 +127,11 @@ io.sockets.on("connection", function (socket) {
         if (numClients === 0) {
             socket.join(room);
             log("Client ID " + socket.id + " created room " + room);
-            socket.emit("created", room, map);
+            socket.emit("created", room, state);
         } else if (numClients < maxPlayers) {
             socket.join(room);
             log("Client ID " + socket.id + " joined room " + room);
-            io.sockets.in(room).emit("joined", room, map);
+            io.sockets.in(room).emit("joined", room, state);
         } else {
             socket.emit("full", room);
         }
