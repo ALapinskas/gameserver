@@ -72,6 +72,7 @@
                         ),
                         roomName = new formInput("name", "Room Name"),
                         submitButton = document.createElement("button");
+                    howManyPlayers.disableButtons(playOptions["SINGLE"]);
                     header.innerText = "Tic-tac-toe";
                     submitButton.innerText = "Play!";
                     wrapper.style.padding = "10px";
@@ -102,7 +103,7 @@
                             } else {
                                 console.log("play");
                                 roomValue = roomName.value.trim();
-                                socket = io("localhost:9000", {withCredentials: true});
+                                socket = io("alfa-webrtc-signaling.herokuapp.com", {withCredentials: true});
 
                                 socket.on("created", (room, map) => {
                                     console.log("room created! Waiting for other player...");
