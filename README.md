@@ -1,5 +1,5 @@
 # gameserver
-Websocket server to hold, and track users, and share data between them.
+Simple server to hold, and track users, and share data between them. Websocket based.
 
 # Using
 # Serverside
