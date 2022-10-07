@@ -3,7 +3,7 @@ Simple server to hold, track users and share data between them. Websocket based.
 
 # Using
 # Serverside
-    copy/paste files to you web-server
+    copy/paste files to your web-server
     run npm i
     run npm start
 
