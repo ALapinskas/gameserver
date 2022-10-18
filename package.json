@@ -1,7 +1,7 @@
 {
   "name": "gameserver",
   "version": "1.1.13",
-  "description": "Websocket server to hold, and track users, and share data beetween them",
+  "description": "Websocket server to hold and track room names, and share data beetween participants  in this room",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
@@ -12,8 +12,12 @@
     "url": "git+https://github.com/ALapinskas/gameserver.git"
   },
   "keywords": [
-    "game",
-    "server"
+    "games",
+    "server",
+    "nodejs",
+    "webserver", 
+    "websocket",
+    "socket-io"
   ],
   "author": "Arturas-Alfredas Lapinskas",
   "license": "MIT",

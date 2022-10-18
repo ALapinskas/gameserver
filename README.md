@@ -1,5 +1,5 @@
 # gameserver
-Simple nodejs server to hold, track users and share data between them. Websocket based.
+Simple nodejs server to hold, track room names and share data between participants in this rooms. Websocket based.
 
 # Using
 # Serverside
@@ -15,7 +15,7 @@ Simple nodejs server to hold, track users and share data between them. Websocket
 
     Use events to emit(socket.emit(event, parameters)):
     _________________________________________________
-    |   event             | parameters              |
+    |   event             | parameters:type = default|
     _________________________________________________
     |   'gatherRoomsInfo' |                         |   
     |   'create or join'  | room:string,            |
@@ -41,7 +41,7 @@ Simple nodejs server to hold, track users and share data between them. Websocket
                                               resets the application state
 
 # Recommended way to use:
-    1. Connect to the socket(by default it will be running on 9000 port), get the roomsInfo with active rooms avaialble.
+    1. Connect to the socket(by default it will be running on 9000 port), get the roomsInfo with active rooms available.
     2. Connect to specific room, or create new one
     3. Send a 'message' event with information about peer actions
     4. Receive 'message' events from other peers, and perform actions  
