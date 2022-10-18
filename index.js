@@ -3,6 +3,7 @@ const socketIO = require("socket.io");
 const fs = require('fs');
 const PORT = process.env.PORT || 9000;
 const INACTIVITY_TIME = 5000;
+const MAX_LOG_SIZE = 104857600;
 
 const app = http.createServer().listen(PORT);
 const roomsInfo = {};
@@ -22,7 +23,6 @@ io.sockets.on("connection", function (socket) {
         const arrayLog = [new Date(), socket.id, "Message from server: ", message],
             stringLog = arrayLog.join(" | ");
             
-        console.log("log: ", stringLog);
         if (sendToClient) socket.emit("log", arrayLog);
         try {
             let stats,
@@ -37,7 +37,7 @@ io.sockets.on("connection", function (socket) {
 
                 stats = await fs.statSync("./logs/logs.txt");
             
-                if(stats.isFile() && stats.size > 1024000) {
+                if(stats.isFile() && stats.size > MAX_LOG_SIZE) {
                     fs.writeFile("./logs/logs.txt", stringLog, err => {
                         if (err) console.error("error: ", err);
                     });
@@ -108,7 +108,6 @@ io.sockets.on("connection", function (socket) {
     socket.on("create or join", function (room, state = {}, maxPlayers = 2, maxMessages = 10) {
         log("Received request to create or join room " + room);
         if (roomsInfo[room]) {
-            console.log(roomsInfo);
             state = roomsInfo[room];
             state.playersInRoom.push(socket.id);
             log("state already exist in this room: ", state);

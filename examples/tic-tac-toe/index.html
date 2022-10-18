@@ -189,7 +189,7 @@
                 const loadingContents = (isDisconnected = false) => {
                     let wrapper = document.createElement("div"),
                         text = document.createElement("p");
-                    wrapper.innerHTML = '<iframe src="https://upload.wikimedia.org/wikipedia/commons/b/b1/Loading_icon.gif" frameBorder="0" class="giphy-embed" allowFullScreen></iframe>';
+                    wrapper.innerHTML = '<iframe src="./Loading_icon.gif" frameBorder="0" class="giphy-embed" allowFullScreen></iframe>';
                     text.innerText = (isDisconnected ? "Your opponent has been disconnected, waiting for rejoin, " : "Waiting other player to join, please ask your friend to go to the ") + "address: " + window.location + ", and room: " + roomValue;
                     wrapper.appendChild(text);
                     wrapper.style.padding = "10px";
@@ -199,7 +199,7 @@
                 const whoseTurnContents = (message) => {
                     let wrapper = document.createElement("div"),
                         text = document.createElement("p");
-                    wrapper.innerHTML = '<iframe src="https://upload.wikimedia.org/wikipedia/commons/b/b1/Loading_icon.gif" frameBorder="0" class="giphy-embed" allowFullScreen></iframe>';
+                    wrapper.innerHTML = '<iframe src="./Loading_icon.gif" frameBorder="0" class="giphy-embed" allowFullScreen></iframe>';
                     text.innerText = (!message ? "Successfully connected! Randomly choosing first player turn...": message);
                     if(isCreator) {
                         setTimeout( () => {
@@ -234,162 +234,174 @@
                         cellWidth = boardWidth / 3;
 
                     console.log("draw board");
+                    try {
+                        
+                        writeWhoseTurnMessage(player);
+                        
+                        gameBoard = document.createElement("canvas");
+                        turnsOverlay = document.createElement("canvas");
+                        boardOverlay = document.createElement("canvas");
 
-                    writeWhoseTurnMessage(player);
-                    
-                    gameBoard = document.createElement("canvas");
-                    turnsOverlay = document.createElement("canvas");
-                    boardOverlay = document.createElement("canvas");
+                        ctxBoard = gameBoard.getContext("2d");
+                        ctxTurnsOverlay = turnsOverlay.getContext("2d");
+                        ctxOverlay = boardOverlay.getContext("2d");
+                        
+                        gameBoard.id = "GameBoard";
+                        turnsOverlay.id = "TurnsOverlay";
+                        boardOverlay.id = "BoardOverlay";
 
-                    ctxBoard = gameBoard.getContext("2d");
-                    ctxTurnsOverlay = turnsOverlay.getContext("2d");
-                    ctxOverlay = boardOverlay.getContext("2d");
-                    
-                    gameBoard.id = "GameBoard";
-                    turnsOverlay.id = "TurnsOverlay";
-                    boardOverlay.id = "BoardOverlay";
-
-                    if (windowWidth > windowHeight) {
-                        while (boardWidth > windowHeight) {
-                            boardWidth = windowWidth / 2;
+                        if (windowWidth > windowHeight) {
+                            let additionalWidth = 0;
+                            while (boardWidth > windowHeight) {
+                                boardWidth = windowWidth / 2 - additionalWidth;
+                                additionalWidth += 20;
+                            }
+                        } else {
+                            if (windowWidth < 500) {
+                                boardWidth = windowWidth - 40;
+                            } else {
+                                let additionalWidth = 0;
+                                boardWidth = windowHeight;
+                                while (boardWidth > windowWidth) {
+                                    boardWidth = windowHeight / 2 - additionalWidth;
+                                    additionalWidth += 20;
+                                }
+                            }
                         }
-                    } else {
-                        boardWidth = windowHeight;
-                        while (boardWidth > windowWidth) {
-                            boardWidth = windowHeight / 2;
+
+                        cellWidth = boardWidth / 3
+                        gameBoard.width = boardWidth;
+                        gameBoard.height = boardWidth;
+
+                        gameBoard.style.position = "absolute";
+
+                        boardOverlay.width = boardWidth;
+                        boardOverlay.height = boardWidth;
+
+                        boardOverlay.style.position = "absolute";
+
+                        turnsOverlay.width = boardWidth;
+                        turnsOverlay.height = boardWidth;
+
+                        turnsOverlay.style.position = "absolute";
+
+                        ctxBoard.fillStyle = "rgba(255, 255, 255, 0.3)";
+                        ctxOverlay.fillStyle = "rgba(0, 0, 0, 0)"; 
+                        ctxBoard.fillRect(0, 0, boardWidth, boardWidth);
+                        ctxOverlay.fillRect(0, 0, boardWidth, boardWidth);
+
+
+                        ctxBoard.strokeStyle = 'black';
+                        ctxBoard.lineWidth = 5;
+
+                        // draw a red line
+                        ctxBoard.beginPath();
+                        ctxBoard.moveTo(boardWidth/3, 0);
+                        ctxBoard.lineTo(boardWidth/3, boardWidth);
+                        ctxBoard.stroke();
+
+                        ctxBoard.beginPath();
+                        ctxBoard.moveTo(boardWidth/3 * 2, 0);
+                        ctxBoard.lineTo(boardWidth/3 * 2, boardWidth);
+                        ctxBoard.stroke();
+
+                        ctxBoard.beginPath();
+                        ctxBoard.moveTo(0, boardWidth/3);
+                        ctxBoard.lineTo(boardWidth, boardWidth/3);
+                        ctxBoard.stroke();
+
+                        ctxBoard.beginPath();
+                        ctxBoard.moveTo(0, boardWidth/3 * 2);
+                        ctxBoard.lineTo(boardWidth, boardWidth/3 * 2);
+                        ctxBoard.stroke();
+
+                        boardDiv.appendChild(gameBoard);
+                        boardDiv.appendChild(turnsOverlay);
+                        boardDiv.appendChild(boardOverlay);
+
+                        //setDrawEvents();
+
+                        boardDiv.addEventListener("mousemove",  (e) => {
+                            const x = e.offsetX,
+                                y = e.offsetY,
+                                hoveredCellX = x > cellWidth ? x > (cellWidth * 2) ? 2 : 1 : 0,
+                                hoveredCellY = y > cellWidth ? y > (cellWidth * 2) ? 2 : 1 : 0;
+                            if (!isCellAlreadyOccupied(hoveredCellX, hoveredCellY)) {
+                                ctxOverlay.clearRect(0, 0, boardOverlay.width, boardOverlay.height);
+                                ctxOverlay.fillStyle = "rgba(189, 195, 199, 0.5)";
+                                ctxOverlay.fillRect(hoveredCellX * cellWidth, hoveredCellY * cellWidth, cellWidth, cellWidth);
+                            }
+                        });
+
+                        boardDiv.addEventListener("click",  (e) => {
+                            const x = e.offsetX,
+                                y = e.offsetY,
+                                clickedCellX = x > cellWidth ? x > (cellWidth * 2) ? 2 : 1 : 0,
+                                clickedCellY = y > cellWidth ? y > (cellWidth * 2) ? 2 : 1 : 0;
+
+                            let drawType;
+                            console.log("clicked, application turn is by creator ?" , isCreator);
+                            if (gameOver) {
+                                message("This game has already over. Refresh your browser to start a new one.");
+                                return;
+                            }
+                            if (whoseTurn(applicationState.whoseTurn).includes("Its is your opponent turn.")) {
+                                message("Its is your opponent turn now! Please wait...");
+                            } else if (!isCellAlreadyOccupied(clickedCellX, clickedCellY)) {
+                                drawType = applicationState.playerA.type;
+                                console.log("now it is turn: ", drawType);
+                                ctxTurnsOverlay.clearRect(0, 0, boardOverlay.width, boardOverlay.height);
+                                drawSign(drawType, clickedCellX, clickedCellY, true);
+                                drawDoneTurns();
+                                applyButton.disabled = false;
+                            }
+                        });
+
+                        drawWin = (key) => {
+                            console.log("draw win, key: ", key);
+                            ctxTurnsOverlay.beginPath();
+                            ctxTurnsOverlay.strokeStyle = "grey";
+                            switch(key) {
+                                case "0x":
+                                    ctxTurnsOverlay.moveTo(cellWidth / 2, 20);
+                                    ctxTurnsOverlay.lineTo(cellWidth / 2, cellWidth * 3 - 20);
+                                    break;
+                                case "1x":
+                                    ctxTurnsOverlay.moveTo(cellWidth + cellWidth / 2, 20);
+                                    ctxTurnsOverlay.lineTo(cellWidth + cellWidth / 2, cellWidth * 3 - 20);
+                                    break;
+                                case "2x":
+                                    ctxTurnsOverlay.moveTo(cellWidth * 2 + cellWidth / 2, 20);
+                                    ctxTurnsOverlay.lineTo(cellWidth * 2 + cellWidth / 2, cellWidth * 3 - 20);
+                                    break;
+                                case "0y":
+                                    ctxTurnsOverlay.moveTo(20, cellWidth / 2);
+                                    ctxTurnsOverlay.lineTo(cellWidth * 3 - 20, cellWidth / 2);
+                                    break;
+                                case "1y":
+                                    ctxTurnsOverlay.moveTo(20, cellWidth + cellWidth / 2);
+                                    ctxTurnsOverlay.lineTo(cellWidth * 3 - 20, cellWidth + cellWidth / 2);
+                                    break;
+                                case "2y":
+                                    ctxTurnsOverlay.moveTo(20, cellWidth * 2 + cellWidth / 2);
+                                    ctxTurnsOverlay.lineTo(cellWidth * 3 - 20, cellWidth * 2 + cellWidth / 2);
+                                    break;
+                                case "012":
+                                    ctxTurnsOverlay.moveTo(cellWidth / 2, cellWidth / 2);
+                                    ctxTurnsOverlay.lineTo(cellWidth * 2 + cellWidth / 2, cellWidth * 2 + cellWidth / 2);
+                                    break;
+                                case "210":
+                                    ctxTurnsOverlay.moveTo(cellWidth * 2 + cellWidth / 2, cellWidth / 2);
+                                    ctxTurnsOverlay.lineTo(cellWidth / 2, cellWidth * 2 + cellWidth / 2);
+                                    break;
+                            }
+                            ctxTurnsOverlay.lineWidth = 3;
+                            ctxTurnsOverlay.stroke();
                         }
+                        isBoardDrawn = true;
+                    } catch (error) {
+                        console.error(error);
                     }
-
-                    cellWidth = boardWidth / 3
-                    gameBoard.width = boardWidth;
-                    gameBoard.height = boardWidth;
-
-                    gameBoard.style.position = "absolute";
-
-                    boardOverlay.width = boardWidth;
-                    boardOverlay.height = boardWidth;
-
-                    boardOverlay.style.position = "absolute";
-
-                    turnsOverlay.width = boardWidth;
-                    turnsOverlay.height = boardWidth;
-
-                    turnsOverlay.style.position = "absolute";
-
-                    ctxBoard.fillStyle = "rgba(255, 255, 255, 0.3)";
-                    ctxOverlay.fillStyle = "rgba(0, 0, 0, 0)"; 
-                    ctxBoard.fillRect(0, 0, boardWidth, boardWidth);
-                    ctxOverlay.fillRect(0, 0, boardWidth, boardWidth);
-
-
-                    ctxBoard.strokeStyle = 'black';
-                    ctxBoard.lineWidth = 5;
-
-                    // draw a red line
-                    ctxBoard.beginPath();
-                    ctxBoard.moveTo(boardWidth/3, 0);
-                    ctxBoard.lineTo(boardWidth/3, boardWidth);
-                    ctxBoard.stroke();
-
-                    ctxBoard.beginPath();
-                    ctxBoard.moveTo(boardWidth/3 * 2, 0);
-                    ctxBoard.lineTo(boardWidth/3 * 2, boardWidth);
-                    ctxBoard.stroke();
-
-                    ctxBoard.beginPath();
-                    ctxBoard.moveTo(0, boardWidth/3);
-                    ctxBoard.lineTo(boardWidth, boardWidth/3);
-                    ctxBoard.stroke();
-
-                    ctxBoard.beginPath();
-                    ctxBoard.moveTo(0, boardWidth/3 * 2);
-                    ctxBoard.lineTo(boardWidth, boardWidth/3 * 2);
-                    ctxBoard.stroke();
-
-                    boardDiv.appendChild(gameBoard);
-                    boardDiv.appendChild(turnsOverlay);
-                    boardDiv.appendChild(boardOverlay);
-
-                    //setDrawEvents();
-
-                    boardDiv.addEventListener("mousemove",  (e) => {
-                        const x = e.offsetX,
-    		                y = e.offsetY,
-                            hoveredCellX = x > cellWidth ? x > (cellWidth * 2) ? 2 : 1 : 0,
-                            hoveredCellY = y > cellWidth ? y > (cellWidth * 2) ? 2 : 1 : 0;
-                        if (!isCellAlreadyOccupied(hoveredCellX, hoveredCellY)) {
-                            ctxOverlay.clearRect(0, 0, boardOverlay.width, boardOverlay.height);
-                            ctxOverlay.fillStyle = "rgba(189, 195, 199, 0.5)";
-                            ctxOverlay.fillRect(hoveredCellX * cellWidth, hoveredCellY * cellWidth, cellWidth, cellWidth);
-                        }
-                    });
-
-                    boardDiv.addEventListener("click",  (e) => {
-                        const x = e.offsetX,
-    		                y = e.offsetY,
-                            clickedCellX = x > cellWidth ? x > (cellWidth * 2) ? 2 : 1 : 0,
-                            clickedCellY = y > cellWidth ? y > (cellWidth * 2) ? 2 : 1 : 0;
-
-                        let drawType;
-                        console.log("clicked, application turn is by creator ?" , isCreator);
-                        if (gameOver) {
-                            message("This game has already over. Refresh your browser to start a new one.");
-                            return;
-                        }
-                        if (whoseTurn(applicationState.whoseTurn).includes("Its is your opponent turn.")) {
-                            message("Its is your opponent turn now! Please wait...");
-                        } else if (!isCellAlreadyOccupied(clickedCellX, clickedCellY)) {
-                            drawType = applicationState.playerA.type;
-                            console.log("now it is turn: ", drawType);
-                            ctxTurnsOverlay.clearRect(0, 0, boardOverlay.width, boardOverlay.height);
-                            drawSign(drawType, clickedCellX, clickedCellY, true);
-                            drawDoneTurns();
-                            applyButton.disabled = false;
-                        }
-                    });
-
-                    drawWin = (key) => {
-                        console.log("draw win, key: ", key);
-                        ctxTurnsOverlay.beginPath();
-                        ctxTurnsOverlay.strokeStyle = "grey";
-                        switch(key) {
-                            case "0x":
-                                ctxTurnsOverlay.moveTo(cellWidth / 2, 20);
-                                ctxTurnsOverlay.lineTo(cellWidth / 2, cellWidth * 3 - 20);
-                                break;
-                            case "1x":
-                                ctxTurnsOverlay.moveTo(cellWidth + cellWidth / 2, 20);
-                                ctxTurnsOverlay.lineTo(cellWidth + cellWidth / 2, cellWidth * 3 - 20);
-                                break;
-                            case "2x":
-                                ctxTurnsOverlay.moveTo(cellWidth * 2 + cellWidth / 2, 20);
-                                ctxTurnsOverlay.lineTo(cellWidth * 2 + cellWidth / 2, cellWidth * 3 - 20);
-                                break;
-                            case "0y":
-                                ctxTurnsOverlay.moveTo(20, cellWidth / 2);
-                                ctxTurnsOverlay.lineTo(cellWidth * 3 - 20, cellWidth / 2);
-                                break;
-                            case "1y":
-                                ctxTurnsOverlay.moveTo(20, cellWidth + cellWidth / 2);
-                                ctxTurnsOverlay.lineTo(cellWidth * 3 - 20, cellWidth + cellWidth / 2);
-                                break;
-                            case "2y":
-                                ctxTurnsOverlay.moveTo(20, cellWidth * 2 + cellWidth / 2);
-                                ctxTurnsOverlay.lineTo(cellWidth * 3 - 20, cellWidth * 2 + cellWidth / 2);
-                                break;
-                            case "012":
-                                ctxTurnsOverlay.moveTo(cellWidth / 2, cellWidth / 2);
-                                ctxTurnsOverlay.lineTo(cellWidth * 2 + cellWidth / 2, cellWidth * 2 + cellWidth / 2);
-                                break;
-                            case "210":
-                                ctxTurnsOverlay.moveTo(cellWidth * 2 + cellWidth / 2, cellWidth / 2);
-                                ctxTurnsOverlay.lineTo(cellWidth / 2, cellWidth * 2 + cellWidth / 2);
-                                break;
-                        }
-                        ctxTurnsOverlay.lineWidth = 3;
-                        ctxTurnsOverlay.stroke();
-                    }
-                    isBoardDrawn = true;
                 }
 
                 const drawSign = (drawType, clickedCellX, clickedCellY, playerTurn = false) => {
