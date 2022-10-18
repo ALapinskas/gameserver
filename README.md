@@ -1,5 +1,5 @@
 # gameserver
-Simple games server to hold, track users and share data between them. Websocket based.
+Simple nodejs server to hold, track users and share data between them. Websocket based.
 
 # Using
 # Serverside
@@ -41,7 +41,7 @@ Simple games server to hold, track users and share data between them. Websocket 
                                               resets the application state
 
 # Recommended way to use:
-    1. Connect to the socket(by default it will be running on 9000 port), handle the rooms information
+    1. Connect to the socket(by default it will be running on 9000 port), get the roomsInfo with active rooms avaialble.
     2. Connect to specific room, or create new one
     3. Send a 'message' event with information about peer actions
     4. Receive 'message' events from other peers, and perform actions  
