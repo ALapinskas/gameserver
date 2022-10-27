@@ -1,5 +1,5 @@
 # gameserver
-Simple nodejs server for multiusers usage: multiplayer games, chats, webrtc calls, etc. It allows to create independent sessions. Websocket based.
+Simple nodejs server for multiuser usage: multiplayer games, chats, webrtc apps, etc. It allows to create independent sessions. Websocket based.
 
 # The idea
     Each session should have its own id, or name.
