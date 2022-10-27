@@ -20,7 +20,7 @@ let MAX_MESSAGES = 10;
 
 io.sockets.on("connection", function (socket) {
     async function log(message, sendToClient = false) {
-        const arrayLog = [new Date(), socket.id, "Message from server: ", message],
+        const arrayLog = [new Date().toISOString() , "id: " + socket.id, message],
             stringLog = arrayLog.join(" | ");
             
         if (sendToClient) socket.emit("log", arrayLog);
@@ -81,9 +81,7 @@ io.sockets.on("connection", function (socket) {
     }
 
     socket.on("message", function (message) {
-        if(message.type !== "move") {
-            log("Message from client: " + JSON.stringify(message));
-        }
+        log("Message from client: " + JSON.stringify(message));
         messageProcessing(message);
     });
 
