@@ -1,6 +1,14 @@
 # gameserver
-Simple nodejs server to hold, track room names and share data between participants in this rooms. Websocket based.
+Simple nodejs server for multiplayer games. It allows to create independent game sessions. Websocket based.
 
+# The idea
+    Each game session should have its own id, or name.
+    Emitting a unic id/name will create a new session, if the id/name is already exist,
+    you will try to join that session. 
+    Emittting other messages will be delegated only to pariticipants 
+    joined to the same session.
+    Server side logging is included (by default maximim 100 mb).
+   
 # Using
 # Serverside
     copy/paste files to your web-server
@@ -42,9 +50,9 @@ Simple nodejs server to hold, track room names and share data between participan
 
 # Recommended way to use:
     1. Connect to the socket(by default it will be running on 9000 port), get the roomsInfo with active rooms available.
-    2. Connect to specific room, or create new one
+    2. Connect to specific room, or create a new one
     3. Send a 'message' event with information about peer actions
-    4. Receive 'message' events from other peers, and perform actions  
+    4. Receive 'message' events from other peers and perform actions  
 
 # Examples
     Tic-tac-toe, 2 player game: http://results.webtm.ru/
