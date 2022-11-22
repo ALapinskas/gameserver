@@ -57,5 +57,5 @@ Websocket based.
     4. Receive 'message' events from other peers and perform actions  
 
 # Examples
-    Tic-tac-toe, 2 player game: http://results.webtm.ru/
+    Tic-tac-toe, 2 player game: http://tictactoe.tw1.ru/
     WebRTC app: 
