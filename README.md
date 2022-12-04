@@ -1,8 +1,10 @@
 # gameserver
-Simple nodejs server for multiplayer games, chats, webrtc signaling. Allows to create independent sessions. Websocket based.
+Simple nodejs server for multiuser usage: multiplayer games, chats, webrtc apps, etc. 
+It allow creating independent sessions for users and delegate messages only inside them. 
+Websocket based.
 
 # The idea
-    Each game session should have its own id, or name.
+    Each session should have its own id, or name.
     Emitting a unic id/name will create a new session, if the id/name is already exist,
     you will try to join that session. 
     Emittting other messages will be delegated only to pariticipants 
