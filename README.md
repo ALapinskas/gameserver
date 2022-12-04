@@ -1,5 +1,5 @@
 # gameserver
-Simple nodejs server for multiplayer games. It allows to create independent game sessions. Websocket based.
+Simple nodejs server for multiplayer games, chats, webrtc signaling. Allows to create independent sessions. Websocket based.
 
 # The idea
     Each game session should have its own id, or name.
@@ -10,11 +10,15 @@ Simple nodejs server for multiplayer games. It allows to create independent game
     Server side logging is included (by default maximim 100 mb).
    
 # Using
-# Serverside
+# Serverside http
     copy/paste files to your web-server
-    run npm i
-    run npm start
-
+    npm i
+    npm start
+# Serverside https
+    For https connection you should provide valid certificate and cert key paths:
+    CERT="/var/certs/cert.crt" KEY="/var/certs/cert.key" npm start
+# Specify port
+    PORT=9999 npm start
 # Clientside
     install socket.io, attach library
 
@@ -55,4 +59,5 @@ Simple nodejs server for multiplayer games. It allows to create independent game
     4. Receive 'message' events from other peers and perform actions  
 
 # Examples
-    Tic-tac-toe, 2 player game: http://results.webtm.ru/
+    Tic-tac-toe, 2 player game: https://tictactoe.tw1.ru
+    Webrtc video call app: https://webrtc.reslc.ru/

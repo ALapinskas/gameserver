@@ -1,11 +1,16 @@
-const http = require("http");
-const socketIO = require("socket.io");
-const fs = require('fs');
-const PORT = process.env.PORT || 9000;
-const INACTIVITY_TIME = 5000;
-const MAX_LOG_SIZE = 104857600;
+const isHttps = !!(process.env.CERT && process.env.KEY),
+    http = isHttps ? require("https") : require("http"),
+    socketIO = require("socket.io"),
+    fs = require('fs'),
+    PORT = process.env.PORT || 9000,
+    INACTIVITY_TIME = 5000,
+    MAX_LOG_SIZE = 104857600;
 
-const app = http.createServer().listen(PORT);
+const app = http.createServer(isHttps ? {
+    cert: fs.readFileSync(process.env.CERT),
+    key: fs.readFileSync(process.env.KEY)
+} : {}).listen(PORT);
+
 const roomsInfo = {};
 const io = socketIO(app, {
     cors: {
@@ -17,6 +22,10 @@ const io = socketIO(app, {
     pingTimeout: INACTIVITY_TIME,
 });
 let MAX_MESSAGES = 10;
+
+io.sockets.on("connect_error", (err) => {
+    console.log("connection error: ", err.message);
+});
 
 io.sockets.on("connection", function (socket) {
     async function log(message, sendToClient = false) {
