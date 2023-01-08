@@ -4,7 +4,10 @@ const isHttps = !!(process.env.CERT && process.env.KEY),
     fs = require('fs'),
     PORT = process.env.PORT || 9000,
     INACTIVITY_TIME = 5000,
+    EMPTY_ROOM_CHECK_TIMER = 5000,
     MAX_LOG_SIZE = 104857600;
+
+let MAX_MESSAGES = 10;
 
 const app = http.createServer(isHttps ? {
     cert: fs.readFileSync(process.env.CERT),
@@ -12,6 +15,11 @@ const app = http.createServer(isHttps ? {
 } : {}).listen(PORT);
 
 const roomsInfo = {};
+
+setInterval(() => {
+    removeEmptyRooms();
+}, EMPTY_ROOM_CHECK_TIMER);
+
 const io = socketIO(app, {
     cors: {
         origin: true,
@@ -21,7 +29,6 @@ const io = socketIO(app, {
     },
     pingTimeout: INACTIVITY_TIME,
 });
-let MAX_MESSAGES = 10;
 
 io.sockets.on("connect_error", (err) => {
     console.log("connection error: ", err.message);
@@ -102,10 +109,8 @@ io.sockets.on("connection", function (socket) {
     socket.on("restart", (state = {}) => {
         socket.rooms.forEach((room) => {
             if (roomsInfo[room] && isCurrentSocketInRoom(room)) {
-                log("Received request to restart the room " + room); 
-                if (roomsInfo[room]) {
-                    state.playersInRoom = roomsInfo[room].playersInRoom;
-                }
+                log("Received request to restart the room " + room);
+                state.playersInRoom = roomsInfo[room].playersInRoom;
                 roomsInfo[room] = state;
                 io.sockets.in(room).emit("restarted", state);
             }
@@ -155,3 +160,11 @@ io.sockets.on("connection", function (socket) {
         });
     });
 });
+
+function removeEmptyRooms() {
+    Object.keys(roomsInfo).forEach((roomKey) => {
+        if (roomsInfo[roomKey].playersInRoom.length === 0) {
+            delete roomsInfo[roomKey];
+        };
+    });
+}
