@@ -1,27 +1,26 @@
 # gameserver
 Simple nodejs server for multiuser usage: multiplayer games, chats, webrtc apps, etc. 
 It allow creating independent sessions for users and delegate messages only inside them. 
-Websocket based.
+Websocket and socket.io based.
 
 # The idea
     Each session should have its own id, or name.
-    Emitting a unic id/name will create a new session, if the id/name is already exist,
-    you will try to join that session. 
-    Emittting other messages will be delegated only to pariticipants 
+    Emitting a uniq id/name will create a new session. You will try to join that session, if the id/name is already exist.
+    Emitting other messages will be delegated only to participants 
     joined to the same session.
-    Server side logging is included (by default maximim 100 mb).
+    Server side logging is included (by default max 100 mb).
    
 # Using
-# Serverside http
+# ServerSide http
     copy/paste files to your web-server
     npm i
     npm start
-# Serverside https
+# ServerSide https
     For https connection you should provide valid certificate and cert key paths:
     CERT="/var/certs/cert.crt" KEY="/var/certs/cert.key" npm start
 # Specify port
     PORT=9999 npm start
-# Clientside
+# ClientSide
     install socket.io, attach library
 
     connect to server from point 1 with socket.io lib: 

@@ -1,7 +1,7 @@
 {
   "name": "gameserver",
   "version": "1.1.16",
-  "description": "Websocket server for multiuser usage. Allows to create independent sessions.",
+  "description": "Nodejs server for multiuser usage. Allows to create independent sessions.",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
@@ -12,7 +12,9 @@
     "url": "git+https://github.com/ALapinskas/gameserver.git"
   },
   "keywords": [
+    "signaling",
     "games",
+    "multiplayer",
     "server",
     "nodejs",
     "webserver", 
@@ -26,8 +28,10 @@
   },
   "homepage": "https://github.com/ALapinskas/gameserver#readme",
   "dependencies": {
+    "socket.io": "4.5.1"
+  },
+  "devDependencies": {
     "mocha": "10.0.0",
-    "socket.io": "4.5.1",
     "socket.io-client": "4.5.3"
   }
 }
