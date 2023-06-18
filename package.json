@@ -1,5 +1,5 @@
 {
-  "name": "gameserver",
+  "name": "@lapinskas/gameserver",
   "version": "1.1.16",
   "description": "Nodejs server for multiuser usage. Allows to create independent sessions.",
   "main": "index.js",
