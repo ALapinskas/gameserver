@@ -1,10 +1,11 @@
 {
   "name": "@lapinskas/gameserver",
-  "version": "1.1.16",
+  "version": "1.1.17",
   "description": "Nodejs server for multiuser usage. Allows to create independent sessions.",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
+    "start-https": "CERT='/var/certs/cert.crt' KEY='/var/certs/cert.key' npm start",
     "test": "./node_modules/mocha/bin/_mocha"
   },
   "repository": {
@@ -17,7 +18,7 @@
     "multiplayer",
     "server",
     "nodejs",
-    "webserver", 
+    "webserver",
     "websocket",
     "socket-io"
   ],

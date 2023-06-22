@@ -101,9 +101,8 @@
                             if(roomName.value.trim().length === 0) {
                                 alert("please type a room name to play!");
                             } else {
-                                console.log("play");
                                 roomValue = roomName.value.trim();
-                                socket = io("alfa-webrtc-signaling.herokuapp.com", {withCredentials: true});
+                                socket = io("http://localhost:9000", {withCredentials: true});
 
                                 socket.on("created", (room, map) => {
                                     console.log("room created! Waiting for other player...");
@@ -168,6 +167,8 @@
                                     }
                                 });
 
+                                socket.on("connect_error", connectionError);
+
                                 socket.on("disconnected", (reason) => {
                                     console.log("opponent disconnected");
                                     if(!gameOver) {
@@ -179,6 +180,11 @@
                                 });
                                 
                                 socket.emit('create or join', roomValue, applicationState);
+
+                                function connectionError (err) {
+                                    console.warn(`connect_error due to ${err.message}`);
+                                    message(`connect_error due to ${err.message}`);
+                                }
                             }
                         }
                     });

@@ -1,10 +1,10 @@
 {
     "name": "tic-tac-toe",
-    "version": "0.0.1",
+    "version": "0.0.2",
     "description": "Tic-tac-toe 2 player game",
     "main": "index.js",
     "scripts": {
-        "start": "node_modules/http-server/bin/http-server -p 8080"
+        "start": "http-server -p 8080"
     },
     "bugs": {
         "url": "https://github.com/ALapinskas/gameserver/issues"
