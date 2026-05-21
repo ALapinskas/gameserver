@@ -1,26 +1,30 @@
 {
   "name": "@lapinskas/gameserver",
-  "version": "1.1.17",
+  "version": "2.0.0",
   "description": "Nodejs server for multiuser usage. Allows to create independent sessions.",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
     "start-https": "CERT='/var/certs/cert.crt' KEY='/var/certs/cert.key' npm start",
-    "test": "./node_modules/mocha/bin/_mocha"
+    "test": "mocha"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/ALapinskas/gameserver.git"
   },
+  "publishConfig": {
+
+  },
   "keywords": [
     "signaling",
     "games",
     "multiplayer",
+    "videocalls",
+    "chat",
     "server",
     "nodejs",
     "webserver",
-    "websocket",
-    "socket-io"
+    "websocket"
   ],
   "author": "Arturas-Alfredas Lapinskas",
   "license": "MIT",
@@ -28,11 +32,7 @@
     "url": "https://github.com/ALapinskas/gameserver/issues"
   },
   "homepage": "https://github.com/ALapinskas/gameserver#readme",
-  "dependencies": {
-    "socket.io": "4.5.1"
-  },
   "devDependencies": {
-    "mocha": "10.0.0",
-    "socket.io-client": "4.5.3"
+    "mocha": "10.0.0"
   }
 }

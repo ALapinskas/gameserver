@@ -1,82 +1,101 @@
 const isHttps = !!(process.env.CERT && process.env.KEY),
     http = isHttps ? require("https") : require("http"),
-    socketIO = require("socket.io"),
+    WebSocket = require("ws"),
     fs = require('fs'),
     PORT = process.env.PORT || 9000,
-    INACTIVITY_TIME = 5000,
     EMPTY_ROOM_CHECK_TIMER = 5000,
     MAX_LOG_SIZE = 104857600;
 
 let MAX_MESSAGES = 10;
 
-const app = http.createServer(isHttps ? {
+const server = http.createServer(isHttps ? {
     cert: fs.readFileSync(process.env.CERT),
     key: fs.readFileSync(process.env.KEY)
 } : {}).listen(PORT);
 
+// Инициализируем WebSocket сервер
+const wss = new WebSocket.Server({ server });
+
 const roomsInfo = {};
 
+// Интервал для очистки пустых комнат
 setInterval(() => {
     removeEmptyRooms();
 }, EMPTY_ROOM_CHECK_TIMER);
 
-const io = socketIO(app, {
-    cors: {
-        origin: true,
-        methods: ["GET", "POST"],
-        transports: ["websocket", "polling"],
-        credentials: true,
-    },
-    pingTimeout: INACTIVITY_TIME,
-});
+// Кастомный генератор ID для клиентов (в socket.io он встроенный)
+let clientIdCounter = 0;
 
-io.sockets.on("connect_error", (err) => {
-    console.log("connection error: ", err.message);
-});
+wss.on("connection", function (ws) {
+    ws.id = "user_" + (++clientIdCounter);
+    ws.rooms = new Set(); // Храним комнаты текущего сокета
 
-io.sockets.on("connection", function (socket) {
     async function log(message, sendToClient = false) {
-        const arrayLog = [new Date().toISOString() , "id: " + socket.id, message],
+        const arrayLog = [new Date().toISOString(), "id: " + ws.id, message],
             stringLog = arrayLog.join(" | ");
             
-        if (sendToClient) socket.emit("log", arrayLog);
+        if (sendToClient) {
+            sendEvent(ws, "log", arrayLog);
+        }
         try {
-            let stats,
-                dir = "./logs";
-
+            let stats, dir = "./logs";
             if (!fs.existsSync(dir)){
                 fs.mkdirSync(dir);
-                fs.writeFile("./logs/logs.txt", stringLog, err => {
-                    if (err) console.error("error: ", err);
-                });
+                fs.writeFileSync("./logs/logs.txt", stringLog);
             } else {
-
-                stats = await fs.statSync("./logs/logs.txt");
-            
-                if(stats.isFile() && stats.size > MAX_LOG_SIZE) {
-                    fs.writeFile("./logs/logs.txt", stringLog, err => {
-                        if (err) console.error("error: ", err);
-                    });
-                } else if(stats.isFile()) {
-                    fs.writeFile("./logs/logs.txt", "\n" + stringLog, { flag: 'a+' }, err => {
-                        if (err) console.error("error: ", err);
-                    });
+                try {
+                    stats = fs.statSync("./logs/logs.txt");
+                    if(stats.isFile() && stats.size > MAX_LOG_SIZE) {
+                        fs.writeFileSync("./logs/logs.txt", stringLog);
+                    } else if(stats.isFile()) {
+                        fs.appendFileSync("./logs/logs.txt", "\n" + stringLog);
+                    }
+                } catch(e) {
+                    fs.writeFileSync("./logs/logs.txt", stringLog);
                 }
             }
         } catch (err) {
-            if(err.code === 'ENOENT') {
-                fs.writeFile("./logs/logs.txt", stringLog, err => {
-                    if(err) console.error("error: ", err);
-                });
-            } else {
-                console.error(err);
-            }
+            console.error(err);
         }
     }
 
+    // Хелпер для отправки JSON-событий конкретному клиенту
+    function sendEvent(client, event, ...args) {
+        if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify({ event, args }));
+        }
+    }
+
+    // Хелпер для отправки события всем в комнате
+    function emitToRoom(room, event, ...args) {
+        wss.clients.forEach((client) => {
+            if (client.rooms.has(room)) {
+                sendEvent(client, event, ...args);
+            }
+        });
+    }
+
+    // Хелпер для отправки всем в комнате, КРОМЕ текущего клиента
+    function broadcastToRoom(room, event, ...args) {
+        wss.clients.forEach((client) => {
+            if (client !== ws && client.rooms.has(room)) {
+                sendEvent(client, event, ...args);
+            }
+        });
+    }
+
+    // Подсчет клиентов в комнате
+    function getNumClientsInRoom(room) {
+        let count = 0;
+        wss.clients.forEach((client) => {
+            if (client.rooms.has(room)) count++;
+        });
+        return count;
+    }
+
     function messageProcessing(message) {
-        socket.rooms.forEach((room) => {
-            if (roomsInfo[room] && isCurrentSocketInRoom(room)) {
+        ws.rooms.forEach((room) => {
+            if (roomsInfo[room] && roomsInfo[room].playersInRoom.includes(ws.id)) {
                 if(!roomsInfo[room].messages) {
                     roomsInfo[room].messages = [message];
                 } else if (roomsInfo[room].messages.length < MAX_MESSAGES) {
@@ -87,75 +106,95 @@ io.sockets.on("connection", function (socket) {
                 }
                 log("updated info:");
                 log(JSON.stringify(roomsInfo));
-                socket.broadcast.to(room).emit("message", message);
+                broadcastToRoom(room, "message", message);
             }
         });
     }
 
-    function isCurrentSocketInRoom(room) {
-        return socket.adapter.rooms.get(room).has(socket.id);
-    }
+    // Обработка входящих сообщений
+    ws.on("message", function (rawData) {
+        try {
+            const data = JSON.parse(rawData);
+            const event = data.event;
+            const args = data.args || [];
 
-    socket.on("message", function (message) {
-        log("Message from client: " + JSON.stringify(message));
-        messageProcessing(message);
-    });
-
-    socket.on("gatherRoomsInfo", () => {
-        log("gather rooms info received");
-        socket.emit("roomsInfo", roomsInfo);
-    });
-
-    socket.on("restart", (state = {}) => {
-        socket.rooms.forEach((room) => {
-            if (roomsInfo[room] && isCurrentSocketInRoom(room)) {
-                log("Received request to restart the room " + room);
-                state.playersInRoom = roomsInfo[room].playersInRoom;
-                roomsInfo[room] = state;
-                io.sockets.in(room).emit("restarted", state);
+            if (event === "message") {
+                const message = args[0];
+                log("Message from client: " + JSON.stringify(message));
+                messageProcessing(message);
             }
-        });
+
+            if (event === "gatherRoomsInfo") {
+                log("gather rooms info received");
+                sendEvent(ws, "roomsInfo", roomsInfo);
+            }
+
+            if (event === "restart") {
+                let state = args[0] || {};
+                ws.rooms.forEach((room) => {
+                    if (roomsInfo[room] && roomsInfo[room].playersInRoom.includes(ws.id)) {
+                        log("Received request to restart the room " + room);
+                        state.playersInRoom = roomsInfo[room].playersInRoom;
+                        roomsInfo[room] = state;
+                        emitToRoom(room, "restarted", state);
+                    }
+                });
+            }
+
+            if (event === "create or join") {
+                let room = args[0];
+                let state = args[1] || {};
+                let maxPlayers = args[2] !== undefined ? args[2] : 2;
+                let maxMessages = args[3] !== undefined ? args[3] : 10;
+
+                log("Received request to create or join room " + room);
+                
+                if (roomsInfo[room]) {
+                    state = roomsInfo[room];
+                    if (!state.playersInRoom.includes(ws.id)) {
+                        state.playersInRoom.push(ws.id);
+                    }
+                    log("state already exist in this room: ", state);
+                } else {
+                    MAX_MESSAGES = maxMessages ? maxMessages : MAX_MESSAGES;
+                    state.playersInRoom = [ws.id];
+                    roomsInfo[room] = state;
+                }
+
+                log("client added");
+                log(JSON.stringify(roomsInfo));
+                
+                const numClients = getNumClientsInRoom(room);
+                log("Room " + room + " now has " + numClients + " client(s)");
+
+                if (numClients === 0) {
+                    ws.rooms.add(room);
+                    log("Client ID " + ws.id + " created room " + room);
+                    sendEvent(ws, "created", room, state);
+                } else if (numClients < maxPlayers) {
+                    ws.rooms.add(room);
+                    log("Client ID " + ws.id + " joined room " + room);
+                    emitToRoom(room, "joined", room, state);
+                } else {
+                    sendEvent(ws, "full", room);
+                }
+                log("current rooms: " + JSON.stringify(Array.from(ws.rooms)));
+            }
+
+        } catch (err) {
+            console.error("Error parsing message: ", err);
+        }
     });
 
-    socket.on("create or join", function (room, state = {}, maxPlayers = 2, maxMessages = 10) {
-        log("Received request to create or join room " + room);
-        if (roomsInfo[room]) {
-            state = roomsInfo[room];
-            state.playersInRoom.push(socket.id);
-            log("state already exist in this room: ", state);
-        } else {
-            MAX_MESSAGES = maxMessages ? maxMessages : MAX_MESSAGES;
-            state.playersInRoom = [socket.id];
-            roomsInfo[room] = state;
-        }
-        ///////////
-        log("client added");
-        log(JSON.stringify(roomsInfo));
-        const clientsInRoom = io.sockets.adapter.rooms.get(room);
-        const numClients = clientsInRoom ? clientsInRoom.size : 0;
-        log("Room " + room + " now has " + numClients + " client(s)");
-
-        if (numClients === 0) {
-            socket.join(room);
-            log("Client ID " + socket.id + " created room " + room);
-            socket.emit("created", room, state);
-        } else if (numClients < maxPlayers) {
-            socket.join(room);
-            log("Client ID " + socket.id + " joined room " + room);
-            io.sockets.in(room).emit("joined", room, state);
-        } else {
-            socket.emit("full", room);
-        }
-        log("current rooms:", socket.rooms);
-    });
-
-    socket.on("disconnect", function (reason) {
+    ws.on("close", function () {
         log("received bye");
         Object.keys(roomsInfo).forEach((room) => {
-            let deletedSocketIndex = roomsInfo[room] && roomsInfo[room].playersInRoom ? roomsInfo[room].playersInRoom.indexOf(socket.id) : -1;
-            if(deletedSocketIndex !== -1) {
-                roomsInfo[room].playersInRoom.splice(deletedSocketIndex, 1);
-                io.sockets.in(room).emit("disconnected", socket.id);
+            if (roomsInfo[room] && roomsInfo[room].playersInRoom) {
+                let deletedSocketIndex = roomsInfo[room].playersInRoom.indexOf(ws.id);
+                if(deletedSocketIndex !== -1) {
+                    roomsInfo[room].playersInRoom.splice(deletedSocketIndex, 1);
+                    emitToRoom(room, "disconnected", ws.id);
+                }
             }
         });
     });
@@ -163,8 +202,8 @@ io.sockets.on("connection", function (socket) {
 
 function removeEmptyRooms() {
     Object.keys(roomsInfo).forEach((roomKey) => {
-        if (roomsInfo[roomKey].playersInRoom.length === 0) {
+        if (!roomsInfo[roomKey].playersInRoom || roomsInfo[roomKey].playersInRoom.length === 0) {
             delete roomsInfo[roomKey];
-        };
+        }
     });
 }
