@@ -2,6 +2,7 @@
 Simple nodejs server for multiuser usage: multiplayer games, chats, webrtc apps, etc. 
 It allow creating independent sessions for users and delegate messages only inside them. 
 Only native Websocket used, no external dependencies.
+Old version 1.x.x works with socket.io library
 
 # The idea
     Each session should have its own id, or name.
