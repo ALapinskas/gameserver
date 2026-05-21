@@ -80,10 +80,6 @@ Old version 1.x.x works with socket.io library
         npm start
     5. Visit http://localhost:8080
 
-# Examples hosted:
-    Tic-tac-toe, 2 player game: https://tictactoe.tw1.ru
-    Webrtc video call app: https://webrtc.reslc.ru/
-
 # ##############################################################################################
 # ##############################################################################################
 
@@ -168,7 +164,3 @@ Old version 1.x.x works with socket.io library
     4. Запустите клиент:
         npm start
     5. Запустите браузер и перейдите по адресу http://localhost:8080
-
-# Примеры он-лайн:
-    Крестики-нолики: https://tictactoe.tw1.ru
-    Приложение для видео-звонков: https://webrtc.reslc.ru/
