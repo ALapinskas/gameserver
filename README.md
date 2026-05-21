@@ -1,7 +1,7 @@
 # gameserver
 Simple nodejs server for multiuser usage: multiplayer games, chats, webrtc apps, etc. 
 It allow creating independent sessions for users and delegate messages only inside them. 
-Websocket and socket.io based.
+Only native Websocket used, no external dependencies.
 
 # The idea
     Each session should have its own id, or name.
@@ -13,7 +13,6 @@ Websocket and socket.io based.
 # Using
 # ServerSide http
     copy/paste files to your web-server
-    npm i
     npm start
 # ServerSide https
     For https connection you should provide valid certificate and cert key paths:
@@ -21,14 +20,19 @@ Websocket and socket.io based.
 # Specify port
     PORT=9999 npm start
 # ClientSide
-    install socket.io, attach library
-
-    connect to server from point 1 with socket.io lib: 
-    const socket = io(serverAddress, {withCredentials: true});
-
-    Use events to emit(socket.emit(event, parameters)):
+    Create Websocket endpoint:
+    ```
+    const socket = new WebSocket(serverAddress);
+    ```
+    Use socket.send() to emit events:
+    ```
+    socket.send(JSON.stringify({
+        event,
+        parameters: ["roomName", { mapParams: true }, 2, 10]
+    }));
+    ```
     _________________________________________________
-    |   event             | parameters:type = default|
+    |   event             | parameters:[]          |
     _________________________________________________
     |   'gatherRoomsInfo' |                         |   
     |   'create or join'  | room:string,            |
@@ -39,12 +43,23 @@ Websocket and socket.io based.
     |   'message'         | message:Object          |
     _________________________________________________ 
 
-    events to listen(socket.on(event, parameters)):
+    listen to events:
+    ```
+    socket.addEventListener('message', (event) => {
+        const data = JSON.parse(event.data);
+        
+        if (data.event === "created") {
+            const [room, state] = data.parameters;
+            console.log("Комната создана:", room, state);
+        }
+        ...
+    });
+    ```
     ______________________________________________________________________________
     |   event      | parameters | receiver | info                                |
     ______________________________________________________________________________
      'roomsInfo'     rooms:Array  conn peer  Received after gatherRoomsInfo will be emitted
-     'created'       room state   conn peer  Received after a new room has been created    
+     'created'       room, state  conn peer  Received after a new room has been created    
      'joined'        room, state  all peers  Received when somebody joined to a room  
      'full'          room         conn peer  Received when tried to join for overflowed room
      'log'           message      conn peer  Debug logging
@@ -58,7 +73,7 @@ Websocket and socket.io based.
     1. Start server with http locally:
         npm start
     2. Navigate to /examples/tic-tac-toe
-    3. Install node_modules:
+    3. Install dependencies:
         npm i
     4. Start client:
         npm start
@@ -74,7 +89,7 @@ Websocket and socket.io based.
 # gameserver
 Простой nodejs сервер для: многопользовательских игр, чатов, приложений для видео-звонков, итд.
 Позволяет создавать независимые сессии для пользователей и рассылать сообщения только внутри них.
-Работает на вебсокетах и socket.io
+Работает на нативных вебсокетах без сторонних библиотек.
 
 # Идея
     Каждая сессия должна иметь свое уникальное имя/id
@@ -86,7 +101,6 @@ Websocket and socket.io based.
 # Использование
 # Сервер http
     скопируйте содержимое на ваш сервер
-    npm i
     npm start
 # Сервер https
     Чтобы запустить сервер с https соединением нужно указать путь к валидному сертификату и ключу:
@@ -94,13 +108,17 @@ Websocket and socket.io based.
 # Указать порт
     PORT=9999 npm start
 # Клиент
-    установите socket.io
-
     создайте соединение с сервером: 
-    const socket = io(serverAddress, {withCredentials: true});
-
+    ```
+    const socket = new WebSocket(serverAddress);
+    ```
     отправляйте сообщения:
-    socket.emit(event, parameters)
+    ```
+    socket.send(JSON.stringify({
+        event,
+        parameters: ["roomName", { mapParams: true }, 2, 10]
+    }));
+    ```
     _________________________________________________
     |   event             | parameters:type = default|
     _________________________________________________
@@ -114,12 +132,22 @@ Websocket and socket.io based.
     _________________________________________________ 
 
     Слушайте сообщения с сервера:
-    socket.on(event, parameters)
+    ```
+    socket.addEventListener('message', (event) => {
+        const data = JSON.parse(event.data);
+        
+        if (data.event === "created") {
+            const [room, state] = data.parameters;
+            console.log("Комната создана:", room, state);
+        }
+        ...
+    });
+    ```
     ______________________________________________________________________________
     |   event      | parameters | receiver | info                                |
     ______________________________________________________________________________
      'roomsInfo'     rooms:Array  conn peer  Получаем, после отправки gatherRoomsInfo
-     'created'       room state   conn peer  Получаем, когда создается новая комната
+     'created'       room, state  conn peer  Получаем, когда создается новая комната
      'joined'        room, state  all peers  Получаем, когда кто-то присоединяется к комнате  
      'full'          room         conn peer  Получаем, когда пытаются 
                                              присоединится к заполненной комнате

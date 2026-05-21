@@ -11,8 +11,9 @@
     },
     "homepage": "https://github.com/ALapinskas/gameserver#readme",
     "dependencies": {
-        "http-server": "14.1.0",
-        "socket.io": "4.5.0",
         "uikit": "github:ALapinskas/uikit"
+    },
+    "devDependencies": {
+        "http-server": "14.1.0"
     }
 }

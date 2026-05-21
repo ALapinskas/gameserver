@@ -2,7 +2,6 @@
 <head>
     <title>Tic-Tac-Toe game app</title>
     <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=0, minimum-scale=1.0, maximum-scale=1.0">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.0/socket.io.js"></script>
     <script type="module" src="node_modules/uikit/dist/uikit.min.js"></script>
 </head>
 <body>
@@ -102,84 +101,121 @@
                                 alert("please type a room name to play!");
                             } else {
                                 roomValue = roomName.value.trim();
-                                socket = io("http://localhost:9000", {withCredentials: true});
+                                socket = new WebSocket("ws://localhost:9000");
 
-                                socket.on("created", (room, map) => {
-                                    console.log("room created! Waiting for other player...");
-                                    optionsPopup.close();
-                                    loadingPopup = new popup("loading", loadingContents(), true);
-                                    isCreator = true;
-                                });
+                                // Подписка на входящие сообщения от сервера
+                                socket.addEventListener("message", (event) => {
+                                    try {
+                                        const data = JSON.parse(event.data);
+                                        const args = data.args || [];
 
-                                socket.on("joined", (room, map) => {
-                                    console.log("some body joined! Starting the game!");
-                                    optionsPopup.close();
-                                    if (loadingPopup) loadingPopup.close();
-                                    applicationState = map;
-                                    console.log("whose turn: ", applicationState.whoseTurn);
-                                    if (typeof applicationState.whoseTurn === "undefined") {
-                                        whoseTurnPopup = new popup("whoseTurn", whoseTurnContents(), true);
-                                    } else if (!isBoardDrawn) {
-                                        writeWhoseTurnMessage(applicationState.whoseTurn);
-                                        drawBoard(applicationState.whoseTurn);
-                                        determineWinner("opponent");
-                                        drawDoneTurns();
-                                    }
-                                });
-
-                                socket.on("restarted", (newMap) => {
-                                    console.log("restarting the game");
-                                    applicationState = newMap;
-                                    restartButton.style.display = "none";
-                                    gameOver = false;
-                                    whoseTurnPopup = new popup("whoseTurn", whoseTurnContents("Starting new game! Randomly choosing first player turn..."), true);
-                                });
-
-                                socket.on("log", (message) => {
-                                    console.log("log from server: ", message);
-                                });
-                                socket.on("full", (message) => {
-                                    alert("Sorry, this room is overflowed, choose another one");
-                                });
-                                socket.on("message", (message) => {
-                                    console.log("message from server: ", message);
-                                    switch(message.type) {
-                                        case "who_first":
-                                            if(!isCreator) {
-                                                applicationState.whoseTurn = message.whoseTurn;
-                                                applicationState.playerA.type = message.whoseTurn == 1 ? "circle":  "cross";
-                                                applicationState.opponent.type = message.whoseTurn == 1 ? "cross" : "circle";
-                                                console.log("Player " + message.whoseTurn + ", will be first!");
-                                                if(loadingPopup) loadingPopup.close();
-                                                drawBoard(applicationState.whoseTurn);
-                                                setTimeout(() => whoseTurnPopup.close(), 2000);
+                                        switch(data.event) {
+                                            case "created": {
+                                                const [room, map] = args;
+                                                console.log("room created! Waiting for other player...");
+                                                optionsPopup.close();
+                                                loadingPopup = new popup("loading", loadingContents(), true);
+                                                isCreator = true;
+                                                break;
                                             }
-                                        break;
-                                        case "turn_pass": 
-                                            console.log("received message from opponent!");
-                                            console.log("new app state: ");
-                                            console.log(applicationState);
-                                            applicationState.whoseTurn = message.state.whoseTurn;
-                                            applicationState.opponent = message.state.playerA;
-                                            drawDoneTurns();
-                                            writeWhoseTurnMessage(applicationState.whoseTurn);
-                                            determineWinner("opponent");
+                                            case "joined": {
+                                                const [room, map] = args;
+                                                console.log("some body joined! Starting the game!");
+                                                optionsPopup.close();
+                                                if (loadingPopup) loadingPopup.close();
+                                                applicationState = map;
+                                                console.log("whose turn: ", applicationState.whoseTurn);
+                                                if (typeof applicationState.whoseTurn === "undefined") {
+                                                    whoseTurnPopup = new popup("whoseTurn", whoseTurnContents(), true);
+                                                } else if (!isBoardDrawn) {
+                                                    writeWhoseTurnMessage(applicationState.whoseTurn);
+                                                    drawBoard(applicationState.whoseTurn);
+                                                    determineWinner("opponent");
+                                                    drawDoneTurns();
+                                                }
+                                                break;
+                                            }
+                                            case "restarted": {
+                                                const [newMap] = args;
+                                                console.log("restarting the game");
+                                                applicationState = newMap;
+                                                restartButton.style.display = "none";
+                                                gameOver = false;
+                                                whoseTurnPopup = new popup("whoseTurn", whoseTurnContents("Starting new game! Randomly choosing first player turn..."), true);
+                                                break;
+                                            }
+                                            case "log": {
+                                                const [message] = args;
+                                                console.log("log from server: ", message);
+                                                break;
+                                            }
+                                            case "full": {
+                                                const [message] = args;
+                                                alert("Sorry, this room is overflowed, choose another one");
+                                                break;
+                                            }
+                                            case "message": {
+                                                const [message] = args;
+                                                console.log("message from server: ", message);
+                                                switch(message.type) {
+                                                    case "who_first":
+                                                        if(!isCreator) {
+                                                            applicationState.whoseTurn = message.whoseTurn;
+                                                            applicationState.playerA.type = message.whoseTurn == 1 ? "circle":  "cross";
+                                                            applicationState.opponent.type = message.whoseTurn == 1 ? "cross" : "circle";
+                                                            console.log("Player " + message.whoseTurn + ", will be first!");
+                                                            if(loadingPopup) loadingPopup.close();
+                                                            drawBoard(applicationState.whoseTurn);
+                                                            setTimeout(() => whoseTurnPopup.close(), 2000);
+                                                        }
+                                                        break;
+                                                    case "turn_pass": 
+                                                        console.log("received message from opponent!");
+                                                        console.log("new app state: ");
+                                                        console.log(applicationState);
+                                                        applicationState.whoseTurn = message.state.whoseTurn;
+                                                        applicationState.opponent = message.state.playerA;
+                                                        drawDoneTurns();
+                                                        writeWhoseTurnMessage(applicationState.whoseTurn);
+                                                        determineWinner("opponent");
+                                                        break;
+                                                }
+                                                break;
+                                            }
+                                            case "disconnected": {
+                                                const [reason] = args;
+                                                console.log("opponent disconnected");
+                                                if(!gameOver) {
+                                                    message("Your opponent has been disconnected, start again!");
+                                                    setGameOver();
+                                                    disconnected = true;
+                                                }
+                                                //loadingPopup = new popup("loading", loadingContents(true), true);
+                                                break;
+                                            }
+                                        }
+                                    } catch (err) {
+                                        console.error("Ошибка парсинга сообщения от сервера:", err);
                                     }
                                 });
 
-                                socket.on("connect_error", connectionError);
-
-                                socket.on("disconnected", (reason) => {
-                                    console.log("opponent disconnected");
-                                    if(!gameOver) {
-                                        message("Your opponent has been disconnected, start again!");
-                                        setGameOver();
-                                        disconnected = true;
+                                // Подписка на ошибки соединения
+                                socket.addEventListener("error", (err) => {
+                                    if (typeof connectionError === "function") {
+                                        connectionError(err);
+                                    } else {
+                                        console.error("WebSocket error observed:", err);
                                     }
-                                    //loadingPopup = new popup("loading", loadingContents(true), true);
                                 });
-                                
-                                socket.emit('create or join', roomValue, applicationState);
+
+                                // Отправка запроса строго после открытия соединения
+                                socket.addEventListener("open", () => {
+                                    socket.send(JSON.stringify({
+                                        event: 'create or join',
+                                        args: [roomValue, applicationState]
+                                    }));
+                                });
+
 
                                 function connectionError (err) {
                                     console.warn(`connect_error due to ${err.message}`);
@@ -214,7 +250,10 @@
                             applicationState.playerA.type = player === 1 ? "cross" : "circle";
                             applicationState.opponent.type = player === 1 ? "circle" : "cross";
                             applicationState.whoseTurn = player;
-                            socket.emit("message", { type: "who_first", whoseTurn: player });
+                            socket.send(JSON.stringify({
+                                event: "message",
+                                args: [{ type: "who_first", whoseTurn: player }]
+                            }));
                             drawBoard(player);
                             if(whoseTurnPopup) {
                                 whoseTurnPopup.close();
@@ -488,7 +527,10 @@
                     applicationState.opponent.type = applicationState.playerA.type === "cross" ? "circle" : "cross";
                     console.log(applicationState);
                     determineWinner("you");
-                    socket.emit("message", {type:"turn_pass", state: applicationState});
+                    socket.send(JSON.stringify({
+                        event: "message",
+                        args: [{ type: "turn_pass", state: applicationState }]
+                    }));
                     applyButton.disabled = true;
                     if(!gameOver) {
                         writeWhoseTurnMessage(applicationState.whoseTurn);
@@ -615,7 +657,10 @@
                         window.location.reload();
                     } else {
                         gameOver = false;
-                        socket.emit("restart", {whoseTurn:undefined, playerA:{ turns:[] }, opponent:{ turns:[] }})
+                        socket.send(JSON.stringify({
+                            event: "restart",
+                            args: [{ whoseTurn: undefined, playerA: { turns: [] }, opponent: { turns: [] } }]
+                        }));
                     }
                 })
             }
