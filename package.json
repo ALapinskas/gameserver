@@ -1,6 +1,6 @@
 {
   "name": "@lapinskas/gameserver",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "Nodejs server for multiuser usage. Allows to create independent sessions.",
   "main": "index.js",
   "scripts": {
@@ -25,6 +25,10 @@
     "nodejs",
     "webserver",
     "websocket"
+  ],
+  "files": [
+      "index.js",
+      "README.md"
   ],
   "author": "Arturas-Alfredas Lapinskas",
   "license": "MIT",
