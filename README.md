@@ -29,11 +29,11 @@ Version 1.x.x works with socket.io library.
     ```
     socket.send(JSON.stringify({
         event,
-        parameters: ["roomName", { mapParams: true }, 2, 10]
+        args: ["roomName", { mapParams: true }, 2, 10]
     }));
     ```
     _________________________________________________
-    |   event             | parameters:[]          |
+    |   event             | args:[]          |
     _________________________________________________
     |   'gatherRoomsInfo' |                         |   
     |   'create or join'  | room:string,            |
@@ -50,14 +50,14 @@ Version 1.x.x works with socket.io library.
         const data = JSON.parse(event.data);
         
         if (data.event === "created") {
-            const [room, state] = data.parameters;
+            const [room, state] = data.args;
             console.log("Комната создана:", room, state);
         }
         ...
     });
     ```
     ______________________________________________________________________________
-    |   event      | parameters | receiver | info                                |
+    |   event      | args | receiver | info                                |
     ______________________________________________________________________________
      'roomsInfo'     rooms:Array  conn peer  Received after gatherRoomsInfo will be emitted
      'created'       room, state  conn peer  Received after a new room has been created    
@@ -113,11 +113,11 @@ Version 1.x.x works with socket.io library.
     ```
     socket.send(JSON.stringify({
         event,
-        parameters: ["roomName", { mapParams: true }, 2, 10]
+        args: ["roomName", { mapParams: true }, 2, 10]
     }));
     ```
     _________________________________________________
-    |   event             | parameters:type = default|
+    |   event             | args:type = default|
     _________________________________________________
     |   'gatherRoomsInfo' |                         |   
     |   'create or join'  | room:string,            |
@@ -134,14 +134,14 @@ Version 1.x.x works with socket.io library.
         const data = JSON.parse(event.data);
         
         if (data.event === "created") {
-            const [room, state] = data.parameters;
+            const [room, state] = data.args;
             console.log("Комната создана:", room, state);
         }
         ...
     });
     ```
     ______________________________________________________________________________
-    |   event      | parameters | receiver | info                                |
+    |   event      | args | receiver | info                                |
     ______________________________________________________________________________
      'roomsInfo'     rooms:Array  conn peer  Получаем, после отправки gatherRoomsInfo
      'created'       room, state  conn peer  Получаем, когда создается новая комната
