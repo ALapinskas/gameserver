@@ -29,13 +29,12 @@ Version 1.x.x works with socket.io library.
     ```
     socket.send(JSON.stringify({
         event,
-        args: ["roomName", { mapParams: true }, 2, 10]
+        args: ["roomName", { userInfo: {ip: 125.12.0.16, name: "myusername", ...} }, 2, 10]
     }));
     ```
     _________________________________________________
     |   event             | args:[]          |
     _________________________________________________
-    |   'gatherRoomsInfo' |                         |   
     |   'create or join'  | room:string,            |
     |                     | userInfo:Object = {},   |
     |                     | maxPlayers:number = 2   |
@@ -50,25 +49,23 @@ Version 1.x.x works with socket.io library.
         const data = JSON.parse(event.data);
         
         if (data.event === "created") {
-            const [room, userInfo] = data.args;
-            console.log("Комната создана:", room, userInfo);
+            const [room, roomState] = data.args;
+            console.log("Комната создана:", room, roomState);
         }
         ...
     });
     ```
     ______________________________________________________________________________
-    |   event      | args           | receiver | info                                |
+    |   event      | args                    | receiver | info                                |
     ______________________________________________________________________________
-     'roomsInfo'     rooms:Array     conn peer  Received after gatherRoomsInfo will be emitted
-     'created'       room, userInfo  conn peer  Received after a new room has been created    
-     'joined'        room, userInfo  all peers  Received when somebody joined to a room  
-     'full'          room            conn peer  Received when tried to join for overflowed room
-     'log'           message         conn peer  Debug logging
-     'message'       message         all peers  Received, when somebody, emits 'message' event
-     'disconnected'  socketId        all peers  Received, when somebody disconnects
-     'restarted'     userInfo        all peers  Received, when somebody emits 'restart' event, and
-                                              resets the application userInfo
-     'connect_error' err             conn peer  Received, when client have connection troubles
+     'created'       room, roomState          conn peer  Received after a new room has been created    
+     'joined'        room, roomState          all peers  Received when somebody joined to a room  
+     'full'          room                     conn peer  Received when tried to join for overflowed room
+     'log'           message                  conn peer  Debug logging
+     'message'       message                  all peers  Received, when somebody, emits 'message' event
+     'disconnected'  socketId                 all peers  Received, when somebody disconnects
+     'restarted'     roomState                all peers  Received, when somebody emits 'restart' event
+     'connect_error' err                      conn peer  Received, when client have connection troubles
 
 # Run /examples/tic-tac-toe folder:
     1. Start server with http locally:
@@ -113,13 +110,12 @@ Version 1.x.x works with socket.io library.
     ```
     socket.send(JSON.stringify({
         event,
-        args: ["roomName", { mapParams: true }, 2, 10]
+        args: ["roomName", { userInfo: {ip: 125.12.0.16, name: "myusername", ...}, 2, 10]
     }));
     ```
     _________________________________________________
     |   event             | args:type = default|
     _________________________________________________
-    |   'gatherRoomsInfo' |                         |   
     |   'create or join'  | room:string,            |
     |                     | userInfo:Object = {},   |
     |                     | maxPlayers:number = 2   |
@@ -143,15 +139,13 @@ Version 1.x.x works with socket.io library.
     ______________________________________________________________________________
     |   event      | args          | receiver | info                                |
     ______________________________________________________________________________
-     'roomsInfo'     rooms:Array     conn peer  Получаем, после отправки gatherRoomsInfo
-     'created'       room, userInfo  conn peer  Получаем, когда создается новая комната
-     'joined'        room, userInfo  all peers  Получаем, когда кто-то присоединяется к комнате  
+     'created'       room, roomState conn peer  Получаем, когда создается новая комната
+     'joined'        room, roomState all peers  Получаем, когда кто-то присоединяется к комнате  
      'full'          room            conn peer  Получаем, когда пытаются 
-                                             присоединится к заполненной комнате
+                                                присоединится к заполненной комнате
      'message'       message         all peers  Получаем, когда создают 'message' сообщение
      'disconnected'  socketId        all peers  Получаем, когда создают 'disconnects'
-     'restarted'     userInfo        all peers  Получаем, когда создают 'restart' сообщение и 
-                                             текущее состояние сбрасывается
+     'restarted'     roomState       all peers  Получаем, когда создают 'restart' сообщение
      'log'           message         conn peer  Отладочные сообщения
      'connect_error' err             conn peer  Получаем, когда на клиенте ошибки с подключением
 

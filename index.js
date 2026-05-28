@@ -165,11 +165,6 @@ wss.on("connection", /** @param {ExtWebSocket} ws */ (ws) => {
                 messageProcessing(message);
             }
 
-            if (event === "gatherRoomsInfo") {
-                log("gather rooms info received");
-                sendEvent(ws, "roomsInfo", roomsInfo);
-            }
-
             if (event === "restart") {
                 const [userInfo = {}] = args;
                 ws.rooms.forEach((room) => {
@@ -236,7 +231,7 @@ wss.on("connection", /** @param {ExtWebSocket} ws */ (ws) => {
     });
 
     ws.on("close", () => {
-        log("received bye");
+        log("received bye from: ", ws.id);
         Object.keys(roomsInfo).forEach((room) => {
             const currentRoom = roomsInfo[room];
             if (currentRoom && currentRoom.playersInRoom) {
@@ -245,7 +240,7 @@ wss.on("connection", /** @param {ExtWebSocket} ws */ (ws) => {
                     currentRoom.playersInRoom.splice(deletedSocketIndex, 1);
                     currentRoom.playersInfo.delete(ws.id); // Удаляем данные игрока из Map при отключении
                     emitToRoom(room, "disconnected", ws.id);
-                }
+                } 
             }
         });
     });
