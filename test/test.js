@@ -579,4 +579,147 @@ describe("protocol", () => {
         player2.onopen = startTest;
         player3.onopen = startTest;
     });
+
+    it("6. player1 creates room, player2 join, player1 and player2 are disconnected, player1 sends 'gatherRoomInfo' room created in the first iteration should not be exist", function(done) {
+        // Увеличиваем таймаут Mocha для этого теста, так как ждем очистки по таймеру
+        this.timeout(8000);
+
+        const roomName = "default5",
+            mapObject = { mapParams: true };
+
+        // Логика первого игрока (Создатель)
+        player1.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            const args = data.args || [];
+
+            if (data.event === "created") {
+                const [room, map] = args;
+                console.log("1 created, room: ", room, " map: ", map);
+                assert.ok(room === roomName);
+
+                const playerId = map.playersInRoom[0];
+                assert.ok(map.playersInfo[playerId].mapParams === mapObject.mapParams);
+                
+                // Подключаем игрока 2 после создания комнаты
+                player2.send(JSON.stringify({
+                    event: "create or join",
+                    args: [roomName]
+                }));
+            }
+
+            if (data.event === "joined") {
+                const [room, map] = args;
+                console.log("1 joined, room: ", room, " map: ", map);
+                assert.ok(room === roomName);
+
+                const playerId = map.playersInRoom[0];
+                assert.ok(map.playersInfo[playerId].mapParams === mapObject.mapParams);
+            }
+
+            if (data.event === "log") {
+                console.log("1 log from server ", args);
+            }
+
+            if (data.event === "full") {
+                console.log("1 room is full");
+                done(new Error("Shouldn't receive full"));
+            }
+
+            if (data.event === "message") {
+                console.log("1 message: ", args);
+                done(new Error("Shouldn't receive any message"));
+            }
+        };
+
+        // Логика второго игрока
+        player2.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            const args = data.args || [];
+
+            if (data.event === "created") {
+                done(new Error("Shouldn't receive created"));
+            }
+
+            if (data.event === "joined") {
+                const [room, map] = args;
+                console.log("2 joined, room: ", room, " map: ", map);
+                assert.ok(room === roomName);
+
+                const playerId = map.playersInRoom[0];
+                assert.ok(map.playersInfo[playerId].mapParams === mapObject.mapParams);
+                
+                // Как только игрок 2 зашел, запускаем цепочку отключений: закрываем игрока 1
+                player1.close();
+            }
+
+            if (data.event === "log") {
+                console.log("2 log from server ", args);
+            }
+
+            if (data.event === "full") {
+                console.log("2 room is full");
+                done(new Error("Shouldn't receive full"));
+            }
+
+            if (data.event === "message") {
+                console.log("2 message: ", args);
+                done(new Error("Shouldn't receive any message"));
+            }
+        };
+
+        // Логика третьего игрока (Проверяющий состояние комнат)
+        player3.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            const args = data.args || [];
+
+            if (data.event === "roomsInfo") {
+                const [rooms] = args;
+                console.log("received rooms info: ", rooms);
+                
+                // Успешный исход теста: комната должна удалиться из списка на сервере
+                if (typeof rooms[roomName] === "undefined") {
+                    done();
+                } else {
+                    done(new Error("empty rooms should be removed"));
+                }
+            }
+        };
+
+        // Цепочка обработки закрытия сокетов
+        player1.onclose = function() {
+            console.log("disconnect 1");
+            console.log("cleanup 1");
+            player2.close(); // Закрываем игрока 2 вслед за игроком 1
+        };
+
+        player2.onclose = function() {
+            console.log("disconnect 2");
+            console.log("cleanup 2");
+            
+            // Комната полностью опустела. Ждем 6 секунд, пока на сервере 
+            // сработает setInterval(() => removeEmptyRooms(), 5000)
+            setTimeout(() => {
+                player3.send(JSON.stringify({
+                    event: "gatherRoomsInfo",
+                    args: []
+                }));
+            }, 6000);
+        };
+
+        // Инициализация теста: дожидаемся готовности всех трех сокетов
+        let openCount = 0;
+        const startTest = () => {
+            openCount++;
+            if (openCount === 3) {
+                player1.send(JSON.stringify({
+                    event: "create or join",
+                    args: [roomName, mapObject]
+                }));
+            }
+        };
+
+        player1.onopen = startTest;
+        player2.onopen = startTest;
+        player3.onopen = startTest;
+    });
 });

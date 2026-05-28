@@ -1,13 +1,15 @@
 {
   "name": "@lapinskas/gameserver",
-  "version": "2.1.1",
+  "version": "2.1.2",
   "description": "Nodejs server for multiuser usage. Allows to create independent sessions.",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
     "start-https": "CERT='/var/certs/cert.crt' KEY='/var/certs/cert.key' npm start",
+    "i-prod": "npm install --omit=dev",
     "test": "mocha"
   },
+  "type": "module",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/ALapinskas/gameserver.git"

@@ -29,12 +29,13 @@ Version 1.x.x works with socket.io library.
     ```
     socket.send(JSON.stringify({
         event,
-        args: ["roomName", { userInfo: {ip: 125.12.0.16, name: "myusername", ...} }, 2, 10]
+        args: ["roomName", { userInfo: {ip: 125.12.0.16, name: "myusername"} }, 2, 10]
     }));
     ```
     _________________________________________________
     |   event             | args:[]          |
     _________________________________________________
+    |   'gatherRoomsInfo' |                         |   
     |   'create or join'  | room:string,            |
     |                     | userInfo:Object = {},   |
     |                     | maxPlayers:number = 2   |
@@ -58,6 +59,7 @@ Version 1.x.x works with socket.io library.
     ______________________________________________________________________________
     |   event      | args                    | receiver | info                                |
     ______________________________________________________________________________
+     'roomsInfo'     rooms:Array<string>      conn peer  Received after gatherRoomsInfo will be emitted
      'created'       room, roomState          conn peer  Received after a new room has been created    
      'joined'        room, roomState          all peers  Received when somebody joined to a room  
      'full'          room                     conn peer  Received when tried to join for overflowed room
@@ -110,12 +112,13 @@ Version 1.x.x works with socket.io library.
     ```
     socket.send(JSON.stringify({
         event,
-        args: ["roomName", { userInfo: {ip: 125.12.0.16, name: "myusername", ...}, 2, 10]
+        args: ["roomName", { userInfo: {ip: 125.12.0.16, name: "myusername"}, 2, 10]
     }));
     ```
     _________________________________________________
     |   event             | args:type = default|
     _________________________________________________
+    |   'gatherRoomsInfo' |                         |   
     |   'create or join'  | room:string,            |
     |                     | userInfo:Object = {},   |
     |                     | maxPlayers:number = 2   |
@@ -137,17 +140,18 @@ Version 1.x.x works with socket.io library.
     });
     ```
     ______________________________________________________________________________
-    |   event      | args          | receiver | info                                |
+    |   event      | args               | receiver | info                                |
     ______________________________________________________________________________
-     'created'       room, roomState conn peer  Получаем, когда создается новая комната
-     'joined'        room, roomState all peers  Получаем, когда кто-то присоединяется к комнате  
-     'full'          room            conn peer  Получаем, когда пытаются 
-                                                присоединится к заполненной комнате
-     'message'       message         all peers  Получаем, когда создают 'message' сообщение
-     'disconnected'  socketId        all peers  Получаем, когда создают 'disconnects'
-     'restarted'     roomState       all peers  Получаем, когда создают 'restart' сообщение
-     'log'           message         conn peer  Отладочные сообщения
-     'connect_error' err             conn peer  Получаем, когда на клиенте ошибки с подключением
+     'roomsInfo'     rooms:Array<string> conn peer  Получаем, после отправки gatherRoomsInfo
+     'created'       room, roomState     conn peer  Получаем, когда создается новая комната
+     'joined'        room, roomState     all peers  Получаем, когда кто-то присоединяется к комнате  
+     'full'          room                conn peer  Получаем, когда пытаются 
+                                                    присоединится к заполненной комнате
+     'message'       message             all peers  Получаем, когда создают 'message' сообщение
+     'disconnected'  socketId            all peers  Получаем, когда создают 'disconnects'
+     'restarted'     roomState           all peers  Получаем, когда создают 'restart' сообщение
+     'log'           message             conn peer  Отладочные сообщения
+     'connect_error' err                 conn peer  Получаем, когда на клиенте ошибки с подключением
 
 # Запустить /examples/tic-tac-toe папку:
     1. Запустите http локально:
