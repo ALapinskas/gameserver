@@ -3,11 +3,12 @@ import http from 'node:http';
 import { WebSocketServer } from 'ws';
 import fs from 'node:fs';
 
-const isHttps = !!(process.env.CERT && process.env.KEY);
-const PORT = process.env.PORT || 9000;
-const EMPTY_ROOM_CHECK_TIMER = 5000;
-const MAX_LOG_SIZE = 104_857_600;
-
+const isHttps = !!(process.env.CERT && process.env.KEY),
+    PORT = process.env.PORT || 9000,
+    EMPTY_ROOM_CHECK_TIMER = 5000,
+    MAX_LOG_SIZE = 104_857_600,
+    KEEP_ALIVE_TIMER = process.env.NODE_ENV === 'test' ? 2000 : 30000;
+    
 let MAX_MESSAGES = 10;
 
 const serverOptions = isHttps ? {
@@ -37,8 +38,13 @@ const roomsInfo = {};
 
 /**
  * Расширенный тип для WebSocket сокета
- * @typedef {import('ws').WebSocket & { id: string, rooms: Set<string> }} ExtWebSocket
+ * @typedef {import('ws').WebSocket & { id: string, rooms: Set<string>, isAlive: boolean }} ExtWebSocket
  */
+
+// Функция для отслеживания «живых» соединений
+function heartbeat() {
+  this.isAlive = true;
+}
 
 // Хелпер для сериализации объектов, содержащих Map (для JSON.stringify)
 const replacer = (key, value) => {
@@ -64,6 +70,9 @@ wss.on("connection", /** @param {ExtWebSocket} ws */ (ws) => {
     clientIdCounter += 1;
     ws.id = `user_${clientIdCounter}`;
     ws.rooms = new Set();
+    ws.isAlive = true;
+
+    ws.on('pong', heartbeat);
 
     /**
      * Асинхронное логирование событий с поддержкой сериализации Map
@@ -236,7 +245,7 @@ wss.on("connection", /** @param {ExtWebSocket} ws */ (ws) => {
     });
 
     ws.on("close", () => {
-        log("received bye");
+        log("received bye from id: ", ws.id);
         Object.keys(roomsInfo).forEach((room) => {
             const currentRoom = roomsInfo[room];
             if (currentRoom && currentRoom.playersInRoom) {
@@ -249,4 +258,20 @@ wss.on("connection", /** @param {ExtWebSocket} ws */ (ws) => {
             }
         });
     });
+});
+
+const interval = setInterval(function ping() {
+    wss.clients.forEach(function each(ws) {
+        if (ws.isAlive === false) {
+            console.log('Пользователь не ответил на ping. Отключаем...');
+            return ws.terminate(); // Жестко закрывает соединение и вызывает событие 'close'
+        }
+
+        ws.isAlive = false;
+        ws.ping(); // Отправляем ping фрейм клиенту
+    });
+}, KEEP_ALIVE_TIMER);
+
+wss.on('close', () => {
+    clearInterval(interval);
 });

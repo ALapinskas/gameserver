@@ -1,6 +1,7 @@
-const assert = require('assert');
+import assert from 'assert';
 
 describe("protocol", () => {
+    let player1, player2, player3;
     beforeEach(() => {
         player1 = new WebSocket("ws://localhost:9000");
         player2 = new WebSocket("ws://localhost:9000");
@@ -707,6 +708,99 @@ describe("protocol", () => {
         };
 
         // Инициализация теста: дожидаемся готовности всех трех сокетов
+        let openCount = 0;
+        const startTest = () => {
+            openCount++;
+            if (openCount === 3) {
+                player1.send(JSON.stringify({
+                    event: "create or join",
+                    args: [roomName, mapObject]
+                }));
+            }
+        };
+
+        player1.onopen = startTest;
+        player2.onopen = startTest;
+        player3.onopen = startTest;
+    });
+
+    it("7. player1 and player2 join room, then silently close connections without sending 'disconnected', room should be removed by heartbeat", function(done) {
+        // Увеличиваем таймаут теста, так как ждем принудительного закрытия и очистки комнат
+        this.timeout(8000);
+
+        const roomName = "heartbeat_test_room",
+            mapObject = { mapParams: true };
+
+        // Игрок 1: Создает комнату
+        player1.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            const args = data.args || [];
+
+            if (data.event === "created") {
+                console.log("Player 1 created room, inviting Player 2...");
+                // Подключаем игрока 2
+                player2.send(JSON.stringify({
+                    event: "create or join",
+                    args: [roomName]
+                }));
+            }
+        };
+
+        // Игрок 2: Заходит в комнату и инициирует симуляцию аварийного обрыва связи
+        player2.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+
+            if (data.event === "joined") {
+                console.log("Player 2 joined. Simulating sudden network loss (close)...");
+                
+                // ВАЖНО: Вызываем .close() без отправки предварительного JSON "disconnected".
+                // Имитируем падение интервала/закрытие вкладки у обоих игроков одновременно.
+                player1.close();
+                player2.close();
+            }
+        };
+
+        // Игрок 3: Сторонний наблюдатель, проверяет, очистил ли сервер пустую комнату
+        player3.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            const args = data.args || [];
+
+            if (data.event === "roomsInfo") {
+                const [rooms] = args;
+                console.log("Auditor received rooms info: ", rooms);
+                
+                // Если код очистки по close/ping работает верно, пустая комната исчезнет
+                if (typeof rooms[roomName] === "undefined") {
+                    done();
+                } else {
+                    done(new Error("Room still exists! Server failed to clean up zombie connections."));
+                }
+            }
+        };
+
+        // Отслеживаем физическое закрытие сокетов на клиенте
+        let disconnectedCount = 0;
+        const handleClose = () => {
+            disconnectedCount++;
+            // Когда оба игрока «отвалились», запускаем таймер проверки
+            if (disconnectedCount === 2) {
+                console.log("Both players dropped connection. Waiting for server cleanup loop...");
+                
+                // Ждем 5-6 секунд (на сервере должен сработать интервал очистки комнат/клиентов)
+                setTimeout(() => {
+                    console.log("Asking server for room status via Player 3...");
+                    player3.send(JSON.stringify({
+                        event: "gatherRoomsInfo",
+                        args: []
+                    }));
+                }, 5500);
+            }
+        };
+
+        player1.onclose = handleClose;
+        player2.onclose = handleClose;
+
+        // Синхронизация старта сокетов
         let openCount = 0;
         const startTest = () => {
             openCount++;
