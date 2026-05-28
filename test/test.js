@@ -16,7 +16,7 @@ describe("protocol", () => {
         player3 = undefined;
     });
 
-    it("player1 send create or join, should receive created event with room name, and map object", (done) => {
+    it("1. player1 send create or join, should receive created event with room name, and map object", (done) => {
         const roomName = "default",
             mapObject = { mapParams: true };
             
@@ -31,7 +31,9 @@ describe("protocol", () => {
                 console.log(map.playersInRoom); // На сервере у нас массив ID
                 
                 assert.ok(room === roomName);
-                assert.ok(map.mapParams === mapObject.mapParams);
+
+                const playerId = map.playersInRoom[0];
+                assert.ok(map.playersInfo[playerId].mapParams === mapObject.mapParams);
                 
                 // Инициируем закрытие сокета (это вызовет player1.onclose)
                 player1.close();
@@ -76,7 +78,7 @@ describe("protocol", () => {
         };
     });
 
-    it("player1 creates room, player2 join", (done) => {
+    it("2. player1 creates room, player2 join", (done) => {
         const roomName = "default2",
             mapObject = { mapParams: true };
         
@@ -89,15 +91,17 @@ describe("protocol", () => {
                 const [room, map] = args;
                 console.log("1 created, room: ", room, " map: ", map);
                 assert.ok(room === roomName);
-                assert.ok(map.mapParams === mapObject.mapParams);
+                const playerId = map.playersInRoom[0];
+                assert.ok(map.playersInfo[playerId].mapParams === mapObject.mapParams);
             }
 
             if (data.event === "joined") {
                 const [room, map] = args;
                 console.log("1 joined, room: ", room, " map: ", map);
                 assert.ok(room === roomName);
-                assert.ok(map.mapParams === mapObject.mapParams);
                 
+                const playerId = map.playersInRoom[0];
+                assert.ok(map.playersInfo[playerId].mapParams === mapObject.mapParams);
                 // Закрываем оба соединения
                 player1.close();
                 player2.close();
@@ -131,7 +135,9 @@ describe("protocol", () => {
                 const [room, map] = args;
                 console.log("2 joined, room: ", room, " map: ", map);
                 assert.ok(room === roomName);
-                assert.ok(map.mapParams === mapObject.mapParams);
+                
+                const playerId = map.playersInRoom[0];
+                assert.ok(map.playersInfo[playerId].mapParams === mapObject.mapParams);
             }
 
             if (data.event === "log") {
@@ -182,7 +188,7 @@ describe("protocol", () => {
         player2.onopen = startTest;
     });
 
-    it("player1 creates room, player2 join, player 2 disconnect, player 1 received a disconnected message", (done) => {
+    it("3. player1 creates room, player2 join, player 2 disconnect, player 1 received a disconnected message", (done) => {
         const roomName = "default4",
             mapObject = { mapParams: true };
         let player2Id;
@@ -196,8 +202,8 @@ describe("protocol", () => {
                 const [room, map] = args;
                 console.log("1 created, room: ", room, " map: ", map);
                 assert.ok(room === roomName);
-                assert.ok(map.mapParams === mapObject.mapParams);
-                
+                const playerId = map.playersInRoom[0];
+                assert.ok(map.playersInfo[playerId].mapParams === mapObject.mapParams);
                 // Отправляем запрос от второго игрока только после создания комнаты
                 player2.send(JSON.stringify({
                     event: "create or join",
@@ -209,7 +215,8 @@ describe("protocol", () => {
                 const [room, map] = args;
                 console.log("1 joined, room: ", room, " map: ", map);
                 assert.ok(room === roomName);
-                assert.ok(map.mapParams === mapObject.mapParams);
+                const playerId = map.playersInRoom[0];
+                assert.ok(map.playersInfo[playerId].mapParams === mapObject.mapParams);
             }
 
             if (data.event === "log") {
@@ -247,7 +254,8 @@ describe("protocol", () => {
                 const [room, map] = args;
                 console.log("2 joined, room: ", room, " map: ", map);
                 assert.ok(room === roomName);
-                assert.ok(map.mapParams === mapObject.mapParams);
+                const playerId = map.playersInRoom[0];
+                assert.ok(map.playersInfo[playerId].mapParams === mapObject.mapParams);
                 
                 // Так как игрок 2 вошел последним, его ID находится в конце массива
                 player2Id = map.playersInRoom[map.playersInRoom.length - 1];
@@ -297,7 +305,7 @@ describe("protocol", () => {
         player2.onopen = startTest;
     });
 
-    it("player1 creates room, player2 join, player1 send message, player2 receives it", (done) => {
+    it("4. player1 creates room, player2 join, player1 send message, player2 receives it", (done) => {
         const roomName = "default3",
             mapObject = { mapParams: true },
             messageFromPlayer1 = "message from player1";
@@ -311,8 +319,9 @@ describe("protocol", () => {
                 const [room, map] = args;
                 console.log("1 created, room: ", room, " map: ", map);
                 assert.ok(room === roomName);
-                assert.ok(map.mapParams === mapObject.mapParams);
                 
+                const playerId = map.playersInRoom[0];
+                assert.ok(map.playersInfo[playerId].mapParams === mapObject.mapParams);
                 // Заводим второго игрока после создания комнаты
                 player2.send(JSON.stringify({
                     event: "create or join",
@@ -324,8 +333,9 @@ describe("protocol", () => {
                 const [room, map] = args;
                 console.log("1 joined, room: ", room, " map: ", map);
                 assert.ok(room === roomName);
-                assert.ok(map.mapParams === mapObject.mapParams);
                 
+                const playerId = map.playersInRoom[0];
+                assert.ok(map.playersInfo[playerId].mapParams === mapObject.mapParams);
                 // Игрок 1 отправляет сообщение в комнату
                 player1.send(JSON.stringify({
                     event: "message",
@@ -361,7 +371,10 @@ describe("protocol", () => {
                 const [room, map] = args;
                 console.log("2 joined, room: ", room, " map: ", map);
                 assert.ok(room === roomName);
-                assert.ok(map.mapParams === mapObject.mapParams);
+                
+                const playerId = map.playersInRoom[0];
+                
+                assert.ok(map.playersInfo[playerId].mapParams === mapObject.mapParams);
             }
 
             if (data.event === "log") {
@@ -414,7 +427,7 @@ describe("protocol", () => {
         player2.onopen = startTest;
     });
 
-    it("player1 creates room, player2 join, player3 try to join and receive roomOverflow message", (done) => {
+    it("5. player1 creates room, player2 join, player3 try to join and receive roomOverflow message", (done) => {
         const roomName = "default4",
             mapObject = { mapParams: true };
         
@@ -427,7 +440,9 @@ describe("protocol", () => {
                 const [room, map] = args;
                 console.log("1 created, room: ", room, " map: ", map);
                 assert.ok(room === roomName);
-                assert.ok(map.mapParams === mapObject.mapParams);
+                
+                const playerId = map.playersInRoom[0];
+                assert.ok(map.playersInfo[playerId].mapParams === mapObject.mapParams);
                 
                 // Подключаем игрока 2 после создания комнаты
                 player2.send(JSON.stringify({
@@ -440,7 +455,9 @@ describe("protocol", () => {
                 const [room, map] = args;
                 console.log("1 joined, room: ", room, " map: ", map);
                 assert.ok(room === roomName);
-                assert.ok(map.mapParams === mapObject.mapParams);
+                
+                const playerId = map.playersInRoom[0];
+                assert.ok(map.playersInfo[playerId].mapParams === mapObject.mapParams);
             }
 
             if (data.event === "log") {
@@ -471,8 +488,9 @@ describe("protocol", () => {
                 const [room, map] = args;
                 console.log("2 joined, room: ", room, " map: ", map);
                 assert.ok(room === roomName);
-                assert.ok(map.mapParams === mapObject.mapParams);
-                
+
+                const playerId = map.playersInRoom[0];
+                assert.ok(map.playersInfo[playerId].mapParams === mapObject.mapParams);
                 // Подключаем игрока 3 только после того, как игрок 2 успешно вошел
                 player3.send(JSON.stringify({
                     event: "create or join",
@@ -562,7 +580,7 @@ describe("protocol", () => {
         player3.onopen = startTest;
     });
 
-    it("player1 creates room, player2 join, player1 and player2 are disconnected, player1 sends 'gatherRoomInfo' room created in the first iteration should not be exist", function(done) {
+    it("6. player1 creates room, player2 join, player1 and player2 are disconnected, player1 sends 'gatherRoomInfo' room created in the first iteration should not be exist", function(done) {
         // Увеличиваем таймаут Mocha для этого теста, так как ждем очистки по таймеру
         this.timeout(8000);
 
@@ -578,7 +596,9 @@ describe("protocol", () => {
                 const [room, map] = args;
                 console.log("1 created, room: ", room, " map: ", map);
                 assert.ok(room === roomName);
-                assert.ok(map.mapParams === mapObject.mapParams);
+
+                const playerId = map.playersInRoom[0];
+                assert.ok(map.playersInfo[playerId].mapParams === mapObject.mapParams);
                 
                 // Подключаем игрока 2 после создания комнаты
                 player2.send(JSON.stringify({
@@ -591,7 +611,9 @@ describe("protocol", () => {
                 const [room, map] = args;
                 console.log("1 joined, room: ", room, " map: ", map);
                 assert.ok(room === roomName);
-                assert.ok(map.mapParams === mapObject.mapParams);
+
+                const playerId = map.playersInRoom[0];
+                assert.ok(map.playersInfo[playerId].mapParams === mapObject.mapParams);
             }
 
             if (data.event === "log") {
@@ -622,7 +644,9 @@ describe("protocol", () => {
                 const [room, map] = args;
                 console.log("2 joined, room: ", room, " map: ", map);
                 assert.ok(room === roomName);
-                assert.ok(map.mapParams === mapObject.mapParams);
+
+                const playerId = map.playersInRoom[0];
+                assert.ok(map.playersInfo[playerId].mapParams === mapObject.mapParams);
                 
                 // Как только игрок 2 зашел, запускаем цепочку отключений: закрываем игрока 1
                 player1.close();

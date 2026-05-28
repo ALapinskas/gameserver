@@ -123,7 +123,9 @@
                                                 console.log("some body joined! Starting the game!");
                                                 optionsPopup.close();
                                                 if (loadingPopup) loadingPopup.close();
-                                                applicationState = map;
+
+                                                const player1 = map.playersInRoom[0];
+                                                applicationState = map.playersInfo[player1];
                                                 console.log("whose turn: ", applicationState.whoseTurn);
                                                 if (typeof applicationState.whoseTurn === "undefined") {
                                                     whoseTurnPopup = new popup("whoseTurn", whoseTurnContents(), true);
@@ -138,7 +140,8 @@
                                             case "restarted": {
                                                 const [newMap] = args;
                                                 console.log("restarting the game");
-                                                applicationState = newMap;
+                                                const player1 = newMap.playersInRoom[0];
+                                                applicationState = newMap.playersInfo[player1];
                                                 restartButton.style.display = "none";
                                                 gameOver = false;
                                                 whoseTurnPopup = new popup("whoseTurn", whoseTurnContents("Starting new game! Randomly choosing first player turn..."), true);
