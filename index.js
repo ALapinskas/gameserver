@@ -2,12 +2,14 @@ import https from 'node:https';
 import http from 'node:http';
 import { WebSocketServer } from 'ws';
 import fs from 'node:fs';
+import { verifyToken } from "./tokenAuth.js";
 
 const isHttps = !!(process.env.CERT && process.env.KEY),
     PORT = process.env.PORT || 9000,
     EMPTY_ROOM_CHECK_TIMER = 5000,
     MAX_LOG_SIZE = 104_857_600,
-    KEEP_ALIVE_TIMER = process.env.NODE_ENV === 'test' ? 2000 : 30000;
+    KEEP_ALIVE_TIMER = process.env.NODE_ENV === 'test' ? 2000 : 30000,
+    VALIDATE_CONNECTION = process.env.VALIDATION && process.env.VALIDATION.length > 0 ? true : false;
     
 let MAX_MESSAGES = 10;
 
@@ -20,7 +22,38 @@ const server = (isHttps ? https : http)
     .createServer(serverOptions)
     .listen(PORT, () => console.log(`Server running on port ${PORT}`));
 
-const wss = new WebSocketServer({ server });
+let wss;
+if (VALIDATE_CONNECTION === true) {
+    console.log("starting private server");
+    wss = new WebSocketServer({ 
+        server,
+        verifyClient: (info, callback) => {
+            console.log("[verifyClient] ", info.req.headers.host);
+            const reqUrl = new URL(info.req.url, `https://${info.req.headers.host}`);
+            const token = reqUrl.searchParams.get('token');
+
+            if (!token) {
+                console.log('Подключение отклонено: Токен отсутствует');
+                callback(false, 401, 'Unauthorized');
+                return;
+            }
+
+            const userPayload = verifyToken(token);
+            if (!userPayload) {
+                console.log('Подключение отклонено: Невалидный JWT');
+                callback(false, 403, 'Forbidden');
+                return;
+            }
+            
+            callback(true);
+        }
+    });
+} else {
+    console.log("starting non private server");
+    wss = new WebSocketServer({ 
+        server,
+    });
+}
 
 /**
  * @typedef {Object} RoomState

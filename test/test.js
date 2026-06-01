@@ -77,6 +77,10 @@ describe("protocol", () => {
                 args: [roomName, mapObject]
             }));
         };
+
+        player1.onerror = function(err) {
+            done(new Error("Shouldn't have errors"));
+        };
     });
 
     it("2. player1 creates room, player2 join", (done) => {
@@ -187,6 +191,13 @@ describe("protocol", () => {
 
         player1.onopen = startTest;
         player2.onopen = startTest;
+
+        player1.onerror = function(err) {
+            done(new Error("Shouldn't have errors"));
+        };
+        player2.onerror = function(err) {
+            done(new Error("Shouldn't have errors"));
+        };
     });
 
     it("3. player1 creates room, player2 join, player 2 disconnect, player 1 received a disconnected message", (done) => {
@@ -304,6 +315,13 @@ describe("protocol", () => {
 
         player1.onopen = startTest;
         player2.onopen = startTest;
+
+        player1.onerror = function(err) {
+            done(new Error("Shouldn't have errors"));
+        };
+        player2.onerror = function(err) {
+            done(new Error("Shouldn't have errors"));
+        };
     });
 
     it("4. player1 creates room, player2 join, player1 send message, player2 receives it", (done) => {
@@ -426,6 +444,12 @@ describe("protocol", () => {
 
         player1.onopen = startTest;
         player2.onopen = startTest;
+        player1.onerror = function(err) {
+            done(new Error("Shouldn't have errors"));
+        };
+        player2.onerror = function(err) {
+            done(new Error("Shouldn't have errors"));
+        };
     });
 
     it("5. player1 creates room, player2 join, player3 try to join and receive roomOverflow message", (done) => {
@@ -579,6 +603,16 @@ describe("protocol", () => {
         player1.onopen = startTest;
         player2.onopen = startTest;
         player3.onopen = startTest;
+
+        player1.onerror = function(err) {
+            done(new Error("Shouldn't have errors"));
+        };
+        player2.onerror = function(err) {
+            done(new Error("Shouldn't have errors"));
+        };
+        player3.onerror = function(err) {
+            done(new Error("Shouldn't have errors"));
+        };
     });
 
     it("6. player1 creates room, player2 join, player1 and player2 are disconnected, player1 sends 'gatherRoomInfo' room created in the first iteration should not be exist", function(done) {

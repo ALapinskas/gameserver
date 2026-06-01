@@ -69,6 +69,15 @@ Version 1.x.x works with socket.io library.
      'restarted'     roomState                all peers  Received, when somebody emits 'restart' event
      'connect_error' err                      conn peer  Received, when client have connection troubles
 
+# To secure the connection against unauthorized access, use Ed25519 JWT token 
+    1. Generate an Ed25519 key pair.
+    2. Place the public key into the server folder under the name ./public.pem
+    3. Start the server with the environment variable VALIDATION='./public.pem'
+    4. Connect to the Node.js server by passing the JWT generated from the private key in the 'token' parameter:
+    ```
+    const socket = new WebSocket(wss://localhost:8080/?token=${encodeURIComponent(token)});
+    ```
+
 # Run /examples/tic-tac-toe folder:
     1. Start server with http locally:
         npm start
@@ -152,6 +161,13 @@ Version 1.x.x works with socket.io library.
      'restarted'     roomState           all peers  Получаем, когда создают 'restart' сообщение
      'log'           message             conn peer  Отладочные сообщения
      'connect_error' err                 conn peer  Получаем, когда на клиенте ошибки с подключением
+
+# Чтобы закрыть соединение от сторонних подключений используется Ed25519 JWT токен
+    1. Сгенерируйте пару ключей ed25519
+    2. Публичный ключ положите в папку с сервером под именем
+    3. Запустите сервер с параметром VALIDATION = 'путь/имя_ключа.pem'
+    4. Подключаемся к Node.js серверу, передавая JWT в параметре token созданный из приватного ключа 
+    const socket = new WebSocket(`wss://localhost:8080/?token=${encodeURIComponent(token)}`);
 
 # Запустить /examples/tic-tac-toe папку:
     1. Запустите http локально:
