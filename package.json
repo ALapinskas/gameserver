@@ -1,6 +1,6 @@
 {
   "name": "@lapinskas/gameserver",
-  "version": "2.1.4",
+  "version": "2.1.5",
   "description": "Nodejs server for multiuser usage. Allows to create independent sessions.",
   "main": "index.js",
   "scripts": {
@@ -45,9 +45,9 @@
   },
   "homepage": "https://github.com/ALapinskas/gameserver#readme",
   "dependencies": {
-    "ws":"^8.21.0"
+    "ws":"8.21.0"
   },
   "devDependencies": {
-    "mocha": "10.0.0"
+    "mocha": "12.0.3"
   }
 }

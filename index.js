@@ -1,6 +1,6 @@
 import https from 'node:https';
 import http from 'node:http';
-import { WebSocketServer } from 'ws';
+import WebSocket, { WebSocketServer } from 'ws';
 import fs from 'node:fs';
 import { verifyToken } from "./tokenAuth.js";
 
@@ -10,7 +10,7 @@ const isHttps = !!(process.env.CERT && process.env.KEY),
     MAX_LOG_SIZE = 104_857_600,
     KEEP_ALIVE_TIMER = process.env.NODE_ENV === 'test' ? 2000 : 30000,
     VALIDATE_CONNECTION = process.env.VALIDATION && process.env.VALIDATION.length > 0 ? true : false;
-    
+
 let MAX_MESSAGES = 10;
 
 const serverOptions = isHttps ? {
@@ -25,7 +25,7 @@ const server = (isHttps ? https : http)
 let wss;
 if (VALIDATE_CONNECTION === true) {
     console.log("starting private server");
-    wss = new WebSocketServer({ 
+    wss = new WebSocketServer({
         server,
         verifyClient: (info, callback) => {
             console.log("[verifyClient] ", info.req.headers.host);
@@ -44,13 +44,13 @@ if (VALIDATE_CONNECTION === true) {
                 callback(false, 403, 'Forbidden');
                 return;
             }
-            
+
             callback(true);
         }
     });
 } else {
     console.log("starting non private server");
-    wss = new WebSocketServer({ 
+    wss = new WebSocketServer({
         server,
     });
 }
@@ -115,7 +115,7 @@ wss.on("connection", /** @param {ExtWebSocket} ws */ (ws) => {
         const formattedMessage = typeof message === 'object' ? JSON.stringify(message, replacer) : message;
         const arrayLog = [new Date().toISOString(), `id: ${ws.id}`, formattedMessage];
         const stringLog = arrayLog.join(" | ");
-            
+
         if (sendToClient) {
             sendEvent(ws, "log", arrayLog);
         }
@@ -147,11 +147,18 @@ wss.on("connection", /** @param {ExtWebSocket} ws */ (ws) => {
      * Хелпер отправки событий. Преобразует Map в обычные объекты для клиента.
      */
     const sendEvent = (client, event, ...args) => {
-        if (client.readyState === 1) {
+      if (client.readyState === WebSocket.OPEN) {
+          try {
             // Преобразуем все Map структуры в обычные объекты перед отправкой по сети
             const safeArgs = JSON.parse(JSON.stringify(args, replacer));
             client.send(JSON.stringify({ event, args: safeArgs }));
-        }
+            log("Sending a message to + " + client.id + " succeced: " + JSON.stringify(safeArgs));
+          } catch (err) {
+            log("Error sending a message" + err.message + " to " + client.id);
+          }
+      } else {
+        log("Error sending a message, client " + client.id + ", he is in disconnected state");
+      }
     };
 
     const emitToRoom = (room, event, ...args) => {
@@ -218,10 +225,10 @@ wss.on("connection", /** @param {ExtWebSocket} ws */ (ws) => {
                     const currentRoom = roomsInfo[room];
                     if (currentRoom && currentRoom.playersInRoom.includes(ws.id)) {
                         log(`Received request to restart the room ${room}`);
-                        
+
                         // Обновляем данные конкретного игрока в Map при перезапуске
                         currentRoom.playersInfo.set(ws.id, userInfo);
-                        
+
                         emitToRoom(room, "restarted", currentRoom);
                     }
                 });
@@ -231,7 +238,7 @@ wss.on("connection", /** @param {ExtWebSocket} ws */ (ws) => {
                 const [room, userInfo = {}, maxPlayers = 2, maxMessages = 10] = args;
 
                 log(`Received request to create or join room ${room}`);
-                
+
                 if (roomsInfo[room]) {
                     // Если комната существует, добавляем игрока в списки
                     const currentRoom = roomsInfo[room];
@@ -244,7 +251,7 @@ wss.on("connection", /** @param {ExtWebSocket} ws */ (ws) => {
                 } else {
                     // Если комнаты нет, инициализируем RoomState с новым Map
                     MAX_MESSAGES = maxMessages ? maxMessages : MAX_MESSAGES;
-                    
+
                     roomsInfo[room] = {
                         playersInRoom: [ws.id],
                         playersInfo: new Map([[ws.id, userInfo]]), // Инициализируем Map сразу с текущим игроком
@@ -254,7 +261,7 @@ wss.on("connection", /** @param {ExtWebSocket} ws */ (ws) => {
 
                 log("client added");
                 log(roomsInfo);
-                
+
                 const numClients = getNumClientsInRoom(room);
                 log(`Room ${room} now has ${numClients} client(s)`);
 
@@ -273,6 +280,7 @@ wss.on("connection", /** @param {ExtWebSocket} ws */ (ws) => {
             }
 
         } catch (err) {
+            log("Error parsing message" + err.message);
             console.error("Error parsing message: ", err);
         }
     });
@@ -296,7 +304,7 @@ wss.on("connection", /** @param {ExtWebSocket} ws */ (ws) => {
 const interval = setInterval(function ping() {
     wss.clients.forEach(function each(ws) {
         if (ws.isAlive === false) {
-            console.log('Пользователь не ответил на ping. Отключаем...');
+            console.log('User doesn\'t answer on ping. Disconnect...');
             return ws.terminate(); // Жестко закрывает соединение и вызывает событие 'close'
         }
 
