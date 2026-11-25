@@ -334,7 +334,7 @@ wss.on(WEBSOCKET_SERVER.LISTEN.CONNECTION, /** @param {ExtWebSocket} ws */ (ws) 
                 if (deletedSocketIndex !== -1) {
                     currentRoom.playersInRoom.splice(deletedSocketIndex, 1);
                     currentRoom.playersInfo.delete(ws.id); // Удаляем данные игрока из Map при отключении
-                    emitToRoom(room, EXT_WEBSOCKET.EMIT.EVENT.DISCONNECTED, ws.id);
+                    broadcastToRoom(room, EXT_WEBSOCKET.EMIT.EVENT.DISCONNECTED, ws.id);
                 }
             }
         });

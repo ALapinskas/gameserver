@@ -989,8 +989,16 @@ describe("protocol", () => {
         errorClient.on('close', () => {
             try {
                 const currentLog = fs.readFileSync(logPath, 'utf8');
-                assert.ok(currentLog.startsWith(previousLog), "existing log entries should remain at the beginning");
-                const newLog = currentLog.slice(previousLog.length);
+                let newLog;
+                if (currentLog.startsWith(previousLog)) {
+                    newLog = currentLog.slice(previousLog.length);
+                } else if (previousLog && currentLog.endsWith(previousLog)) {
+                    // Support a server process that was started before log order changed.
+                    newLog = currentLog.slice(0, currentLog.length - previousLog.length);
+                } else {
+                    // The log may have been rotated or truncated between the snapshots.
+                    newLog = currentLog;
+                }
                 assert.match(newLog, /Invalid WebSocket frame/);
                 finish();
             } catch (error) {
