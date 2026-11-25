@@ -1,4 +1,6 @@
 import assert from 'assert';
+import fs from 'node:fs';
+import { WebSocket as WsClient } from 'ws';
 
 
 describe("protocol", () => {
@@ -576,7 +578,9 @@ describe("protocol", () => {
         // Логика отслеживания закрытия сокетов
         player1.onclose = function() {
             console.log("disconnect 1");
-            player2.close(); // Закрываем оставшегося игрока 2
+            if (player2 && player2.readyState === WebSocket.OPEN) {
+                player2.close(); // Закрываем оставшегося игрока 2
+            }
         };
 
         player2.onclose = function() {
@@ -616,7 +620,7 @@ describe("protocol", () => {
         };
     });
 
-    it("6. player1 creates room, player2 join, player1 and player2 are disconnected, player1 sends 'gatherRoomInfo' room created in the first iteration should not be exist", function(done) {
+    it("6. player1 creates room, player2 join, player1 and player2 are disconnected, player1 sends 'gatherRoomsInfo' room created in the first iteration should not be exist", function(done) {
         // Увеличиваем таймаут Mocha для этого теста, так как ждем очистки по таймеру
         this.timeout(8000);
 
@@ -960,5 +964,40 @@ describe("protocol", () => {
             console.log("Player 2 socket error:", error);
             done(new Error("Player 2 connection should not fail"));
         };
+    });
+
+    it("logs WebSocket errors", function(done) {
+        this.timeout(5000);
+
+        const logPath = "./logs/logs.txt";
+        const previousLog = fs.existsSync(logPath) ? fs.readFileSync(logPath, 'utf8') : "";
+        const errorClient = new WsClient("ws://localhost:9000");
+        let completed = false;
+        const finish = (error) => {
+            if (completed) return;
+            completed = true;
+            done(error);
+        };
+
+        errorClient.on('open', () => {
+            // Send invalid UTF-8 bytes in a text frame to trigger a server-side WebSocket error.
+            errorClient.send(Buffer.from([0xff]), { binary: false });
+        });
+
+        errorClient.on('error', finish);
+
+        errorClient.on('close', () => {
+            try {
+                const currentLog = fs.readFileSync(logPath, 'utf8');
+                assert.ok(currentLog.endsWith(previousLog), "new log entries should be prepended");
+                const newLog = previousLog
+                    ? currentLog.slice(0, currentLog.length - previousLog.length)
+                    : currentLog;
+                assert.match(newLog, /Invalid WebSocket frame/);
+                finish();
+            } catch (error) {
+                finish(error);
+            }
+        });
     });
 });

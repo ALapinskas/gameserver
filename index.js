@@ -13,6 +13,41 @@ const isHttps = !!(process.env.CERT && process.env.KEY),
 
 let MAX_MESSAGES = 10;
 
+const WEBSOCKET_SERVER = { //wss
+  LISTEN: {
+    CONNECTION: 'connection',
+    CLOSE: 'close'
+  }
+};
+const EXT_WEBSOCKET = { //ws
+  LISTEN: {
+    PONG: 'pong',
+    ERROR: 'error',
+    MESSAGE: 'message',
+    EVENT: { // client sends
+      GATHER_ROOMS_INFO: 'gatherRoomsInfo',
+      CREATE_OR_JOIN: 'create or join',
+      RESTART: 'restart',
+      MESSAGE: 'message'
+    },
+    CLOSE: 'close',
+  },
+  EMIT: {
+    PING: 'ping',
+    MESSAGE: 'message',
+    EVENT: {
+      LOG: 'log',
+      GATHER_ROOMS_INFO: 'roomsInfo',
+      CREATED: 'created',
+      CREATE_OR_JOIN: 'create or join',
+      JOINED: 'joined',
+      FULL: 'full',
+      RESTARTED: 'restarted',
+      DISCONNECTED: 'disconnected'
+    },
+  },
+};
+
 const serverOptions = isHttps ? {
     cert: fs.readFileSync(process.env.CERT),
     key: fs.readFileSync(process.env.KEY)
@@ -99,25 +134,29 @@ setInterval(removeEmptyRooms, EMPTY_ROOM_CHECK_TIMER);
 
 let clientIdCounter = 0;
 
-wss.on("connection", /** @param {ExtWebSocket} ws */ (ws) => {
+wss.on(WEBSOCKET_SERVER.LISTEN.CONNECTION, /** @param {ExtWebSocket} ws */ (ws) => {
     clientIdCounter += 1;
     ws.id = `user_${clientIdCounter}`;
     ws.rooms = new Set();
     ws.isAlive = true;
 
-    ws.on('pong', heartbeat);
+    ws.on(EXT_WEBSOCKET.LISTEN.PONG, heartbeat);
 
     /**
      * Асинхронное логирование событий с поддержкой сериализации Map
      */
     const log = async (message, sendToClient = false) => {
         // Если передали объект (например, roomsInfo), сериализуем его с учетом Map
-        const formattedMessage = typeof message === 'object' ? JSON.stringify(message, replacer) : message;
+        const formattedMessage = message instanceof Error
+            ? message.message
+            : typeof message === 'object'
+                ? JSON.stringify(message, replacer)
+                : message;
         const arrayLog = [new Date().toISOString(), `id: ${ws.id}`, formattedMessage];
         const stringLog = arrayLog.join(" | ");
 
         if (sendToClient) {
-            sendEvent(ws, "log", arrayLog);
+            sendEvent(ws, EXT_WEBSOCKET.EMIT.EVENT.LOG, arrayLog);
         }
         try {
             const dir = "./logs";
@@ -132,7 +171,8 @@ wss.on("connection", /** @param {ExtWebSocket} ws */ (ws) => {
                     if (stats.isFile() && stats.size > MAX_LOG_SIZE) {
                         fs.writeFileSync(logFile, stringLog);
                     } else if (stats.isFile()) {
-                        fs.appendFileSync(logFile, `\n${stringLog}`);
+                        const existingLog = fs.readFileSync(logFile, 'utf8');
+                        fs.writeFileSync(logFile, `${stringLog}\n${existingLog}`);
                     }
                 } catch {
                     fs.writeFileSync(logFile, stringLog);
@@ -143,6 +183,7 @@ wss.on("connection", /** @param {ExtWebSocket} ws */ (ws) => {
         }
     };
 
+    ws.on(EXT_WEBSOCKET.LISTEN.ERROR, log);
     /**
      * Хелпер отправки событий. Преобразует Map в обычные объекты для клиента.
      */
@@ -199,27 +240,27 @@ wss.on("connection", /** @param {ExtWebSocket} ws */ (ws) => {
                 }
                 log("updated info:");
                 log(roomsInfo);
-                broadcastToRoom(room, "message", message);
+                broadcastToRoom(room, EXT_WEBSOCKET.EMIT.MESSAGE, message);
             }
         });
     };
 
-    ws.on("message", (rawData) => {
+    ws.on(EXT_WEBSOCKET.LISTEN.MESSAGE, (rawData) => {
         try {
             const { event, args = [] } = JSON.parse(rawData.toString());
 
-            if (event === "message") {
+            if (event === EXT_WEBSOCKET.LISTEN.EVENT.MESSAGE) {
                 const message = args[0];
                 log(`Message from client: ${JSON.stringify(message)}`);
                 messageProcessing(message);
             }
 
-            if (event === "gatherRoomsInfo") {
+            if (event === EXT_WEBSOCKET.LISTEN.EVENT.GATHER_ROOMS_INFO) {
                 log("gather rooms info received");
-                sendEvent(ws, "roomsInfo", Object.keys(roomsInfo));
+                sendEvent(ws, EXT_WEBSOCKET.EMIT.EVENT.GATHER_ROOMS_INFO, Object.keys(roomsInfo));
             }
 
-            if (event === "restart") {
+            if (event === EXT_WEBSOCKET.LISTEN.EVENT.RESTART) {
                 const [userInfo = {}] = args;
                 ws.rooms.forEach((room) => {
                     const currentRoom = roomsInfo[room];
@@ -229,12 +270,12 @@ wss.on("connection", /** @param {ExtWebSocket} ws */ (ws) => {
                         // Обновляем данные конкретного игрока в Map при перезапуске
                         currentRoom.playersInfo.set(ws.id, userInfo);
 
-                        emitToRoom(room, "restarted", currentRoom);
+                        emitToRoom(room, EXT_WEBSOCKET.EMIT.EVENT.RESTARTED, currentRoom);
                     }
                 });
             }
 
-            if (event === "create or join") {
+            if (event === EXT_WEBSOCKET.LISTEN.EVENT.CREATE_OR_JOIN) {
                 const [room, userInfo = {}, maxPlayers = 2, maxMessages = 10] = args;
 
                 log(`Received request to create or join room ${room}`);
@@ -268,13 +309,13 @@ wss.on("connection", /** @param {ExtWebSocket} ws */ (ws) => {
                 if (numClients === 0) {
                     ws.rooms.add(room);
                     log(`Client ID ${ws.id} created room ${room}`);
-                    sendEvent(ws, "created", room, roomsInfo[room]);
+                    sendEvent(ws, EXT_WEBSOCKET.EMIT.EVENT.CREATED, room, roomsInfo[room]);
                 } else if (numClients < maxPlayers) {
                     ws.rooms.add(room);
                     log(`Client ID ${ws.id} joined room ${room}`);
-                    emitToRoom(room, "joined", room, roomsInfo[room]);
+                    emitToRoom(room, EXT_WEBSOCKET.EMIT.EVENT.JOINED, room, roomsInfo[room]);
                 } else {
-                    sendEvent(ws, "full", room);
+                    sendEvent(ws, EXT_WEBSOCKET.EMIT.EVENT.FULL, room);
                 }
                 log(`current rooms: ${JSON.stringify(Array.from(ws.rooms))}`);
             }
@@ -285,7 +326,7 @@ wss.on("connection", /** @param {ExtWebSocket} ws */ (ws) => {
         }
     });
 
-    ws.on("close", () => {
+    ws.on(EXT_WEBSOCKET.LISTEN.CLOSE, () => {
         log("received bye from id: ", ws.id);
         Object.keys(roomsInfo).forEach((room) => {
             const currentRoom = roomsInfo[room];
@@ -294,7 +335,7 @@ wss.on("connection", /** @param {ExtWebSocket} ws */ (ws) => {
                 if (deletedSocketIndex !== -1) {
                     currentRoom.playersInRoom.splice(deletedSocketIndex, 1);
                     currentRoom.playersInfo.delete(ws.id); // Удаляем данные игрока из Map при отключении
-                    emitToRoom(room, "disconnected", ws.id);
+                    emitToRoom(room, EXT_WEBSOCKET.EMIT.EVENT.DISCONNECTED, ws.id);
                 }
             }
         });
@@ -313,6 +354,6 @@ const interval = setInterval(function ping() {
     });
 }, KEEP_ALIVE_TIMER);
 
-wss.on('close', () => {
+wss.on(WEBSOCKET_SERVER.LISTEN.CLOSE, () => {
     clearInterval(interval);
 });
