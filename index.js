@@ -171,8 +171,7 @@ wss.on(WEBSOCKET_SERVER.LISTEN.CONNECTION, /** @param {ExtWebSocket} ws */ (ws) 
                     if (stats.isFile() && stats.size > MAX_LOG_SIZE) {
                         fs.writeFileSync(logFile, stringLog);
                     } else if (stats.isFile()) {
-                        const existingLog = fs.readFileSync(logFile, 'utf8');
-                        fs.writeFileSync(logFile, `${stringLog}\n${existingLog}`);
+                        fs.appendFileSync(logFile, `\n${stringLog}`);
                     }
                 } catch {
                     fs.writeFileSync(logFile, stringLog);

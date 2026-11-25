@@ -989,10 +989,8 @@ describe("protocol", () => {
         errorClient.on('close', () => {
             try {
                 const currentLog = fs.readFileSync(logPath, 'utf8');
-                assert.ok(currentLog.endsWith(previousLog), "new log entries should be prepended");
-                const newLog = previousLog
-                    ? currentLog.slice(0, currentLog.length - previousLog.length)
-                    : currentLog;
+                assert.ok(currentLog.startsWith(previousLog), "existing log entries should remain at the beginning");
+                const newLog = currentLog.slice(previousLog.length);
                 assert.match(newLog, /Invalid WebSocket frame/);
                 finish();
             } catch (error) {
